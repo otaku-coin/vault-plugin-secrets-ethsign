@@ -1,4 +1,5 @@
 // Copyright © 2020 Kaleido
+// Copyright © 2023 Otaku Coin Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -50,6 +51,7 @@ func paths(b *backend) []*framework.Path {
 		pathReadAndDelete(b),
 		pathSign(b),
 		pathExport(b),
+		pathSignDigest(b),
 	}
 }
 
@@ -70,12 +72,12 @@ func (b *backend) createAccount(ctx context.Context, req *logical.Request, data 
 	var err error
 
 	if keyInput != "" {
-    re := regexp.MustCompile("[0-9a-fA-F]{64}$")
-    key := re.FindString(keyInput)
-    if key == "" {
-      b.Logger().Error("Input private key did not parse successfully", "privateKey", keyInput)
-      return nil, fmt.Errorf("privateKey must be a 32-byte hexidecimal string")
-    }
+		re := regexp.MustCompile("[0-9a-fA-F]{64}$")
+		key := re.FindString(keyInput)
+		if key == "" {
+			b.Logger().Error("Input private key did not parse successfully", "privateKey", keyInput)
+			return nil, fmt.Errorf("privateKey must be a 32-byte hexidecimal string")
+		}
 		privateKey, err = crypto.HexToECDSA(key)
 		if err != nil {
 			b.Logger().Error("Error reconstructing private key from input hex", "error", err)
@@ -289,6 +291,46 @@ func (b *backend) signTx(ctx context.Context, req *logical.Request, data *framew
 		Data: map[string]interface{}{
 			"transaction_hash":   signedTx.Hash().Hex(),
 			"signed_transaction": hexutil.Encode(signedTxBuff.Bytes()),
+		},
+	}, nil
+}
+
+func (b *backend) signDigest(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
+	from := data.Get("name").(string)
+	b.Logger().Info("Generating signature for address", "from", from)
+
+	digestHash := data.Get("hash").(string)
+	_, err := hexutil.Decode(digestHash)
+	if err != nil {
+		b.Logger().Error("Failed to decode payload for the 'hash' field", "error", err)
+		return nil, err
+	}
+
+	account, err := b.retrieveAccount(ctx, req, from)
+	if err != nil {
+		b.Logger().Error("Failed to retrieve the signing account", "address", from, "error", err)
+		return nil, fmt.Errorf("Error retrieving signing account %s", from)
+	}
+	if account == nil {
+		b.Logger().Error("Signing account does not exist", "address", from)
+		return nil, fmt.Errorf("Signing account %s does not exist", from)
+	}
+	privateKey, err := crypto.HexToECDSA(account.PrivateKey)
+	if err != nil {
+		b.Logger().Error("Error reconstructing private key from retrieved hex", "error", err)
+		return nil, fmt.Errorf("Error reconstructing private key from retrieved hex")
+	}
+	defer ZeroKey(privateKey)
+
+	signature, err := SignDigestHash(digestHash, privateKey)
+	if err != nil {
+		b.Logger().Error("Failed to sign message", "address", from, "error", err)
+		return nil, fmt.Errorf("Failed to sign message")
+	}
+
+	return &logical.Response{
+		Data: map[string]interface{}{
+			"signature": signature,
 		},
 	}, nil
 }
