@@ -100,6 +100,7 @@ func (b *backend) createAccount(ctx context.Context, req *logical.Request, data 
 	hash := sha3.NewLegacyKeccak256()
 	hash.Write(publicKeyBytes[1:])
 	address := hexutil.Encode(hash.Sum(nil)[12:])
+	b.Logger().Info("Creating account for address", "address", address)
 
 	accountPath := fmt.Sprintf("accounts/%s", address)
 
@@ -162,6 +163,8 @@ func (b *backend) exportAccount(ctx context.Context, req *logical.Request, data 
 
 func (b *backend) deleteAccount(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
 	address := data.Get("name").(string)
+	b.Logger().Info("Deleting account for address", "address", address)
+
 	account, err := b.retrieveAccount(ctx, req, address)
 	if err != nil {
 		b.Logger().Error("Failed to retrieve the account by address", "address", address, "error", err)
