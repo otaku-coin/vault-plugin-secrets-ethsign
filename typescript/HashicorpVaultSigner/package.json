@@ -6,7 +6,10 @@
   "main": "./lib/index.js",
   "scripts": {
     "build": "tsc -p ./tsconfig.json",
-    "test": "npx hardhat test"
+    "test": "npx hardhat test",
+    "gethdev": "./scripts/gethdev.sh",
+    "vaultdev": "./scripts/vaultdev.sh",
+    "devnet_test": "npx hardhat run --network dev scripts/devnet_test.ts"
   },
   "keywords": [],
   "author": "Otaku Coin Association",
