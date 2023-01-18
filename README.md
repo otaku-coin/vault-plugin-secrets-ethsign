@@ -1,7 +1,6 @@
 # vault-plugin-secrets-ethsign
 
-[![Build Status](https://travis-ci.org/kaleido-io/vault-plugin-secrets-ethsign.svg?branch=master)](https://travis-ci.org/kaleido-io/vault-plugin-secrets-ethsign)
-[![codecov](https://codecov.io/gh/kaleido-io/vault-plugin-secrets-ethsign/branch/master/graph/badge.svg?token=3LlJ7aSeW2)](https://codecov.io/gh/kaleido-io/vault-plugin-secrets-ethsign)
+This is a modified version of vault-plugin-secrets-ethsign plugin for signing Ethererum transaction for ethers.js.
 
 A HashiCorp Vault plugin that supports secp256k1 based signing, with an API interface that turns the vault into a software-based HSM device.
 
