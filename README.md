@@ -269,6 +269,33 @@ To use EIP155 signer, instead of Homestead signer, pass in `chainId` in the JSON
 
 The `signed_transaction` value in the response is already RLP encoded and can be submitted to an Ethereum blockchain directly.
 
+### Sign A Digest Hash
+Use one of the accounts to sign a digest hash.
+
+Using the REST API:
+```
+$  curl -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" http://localhost:8200/v1/ethereum/accounts/0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266/sign_digest -d '{"hash":"0x1e1ef3cf2ddb74e14d651272a05919c34c039ef08351c022b39807e275e1f62e"}' |jq
+
+{
+  "request_id": "1abd915b-f4b2-4d0f-b144-e32ea27f804a",
+  "lease_id": "",
+  "renewable": false,
+  "lease_duration": 0,
+  "data": {
+    "signature": "0xf725b40228eadb55a39900ab877a9a2c0549744ee8e74c59f1ac74882f248cd85ed8f6e1949379d3b1d5673fe1d65985fe6150f22093f5f9b0f01aadb9cba6f41c"
+  },
+  "wrap_info": null,
+  "warnings": null,
+  "auth": null
+}
+```
+
+The `sign_digest` API designed to simular signDigest function of ethers.js
+[SigningKey class](https://github.com/ethers-io/ethers.js/blob/master/packages/signing-key/src.ts/index.ts).
+See signTransaction and signMessage methods of ethers.js [Wallet class](https://github.com/ethers-io/ethers.js/blob/master/packages/wallet/src.ts/index.ts) for more details.
+
+NOTE: `0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266` is an address of `Account #0` of the hardhat network. See [Hardhat Network](https://hardhat.org/hardhat-network/docs/overview) for more details.
+
 ## Access Policies
 The plugin's endpoint paths are designed such that admin-level access policies vs. user-level access policies can be easily separated.
 
