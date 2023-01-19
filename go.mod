@@ -1,4 +1,4 @@
-module github.com/kaleido-io/vault-plugin-secrets-ethsign
+module github.com/otaku-coin/vault-plugin-secrets-ethsign
 
 go 1.16
 
