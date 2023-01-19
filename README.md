@@ -146,7 +146,7 @@ address    0xd5bcc62d9b1087a5cfec116c24d6187dd40fdf8a
 ```
 
 ### List Existing Accounts
-The list command only returns the addresses of the signing accounts. To return the private keys, use the `/export/accounts/:address` endpoint.
+The list command only returns the addresses of the signing accounts.
 
 Using the REST API:
 ```
@@ -180,7 +180,7 @@ Keys
 ```
 
 ### Reading Individual Accounts
-Inspect the key using the address. Only the address of the signing account is returned. To return the private key, use the `/export/accounts/:address` endpoint.
+Inspect the key using the address. Only the address of the signing account is returned.
 
 Using the REST API:
 ```
@@ -207,38 +207,6 @@ $ vault read eth/accounts/0xd5bcc62d9b1087a5cfec116c24d6187dd40fdf8a
 Key        Value
 ---        -----
 address    0xd5bcc62d9b1087a5cfec116c24d6187dd40fdf8a
-```
-
-### Export An Account
-You can also export the account by returning the private key.
-
-Using the REST API:
-```
-$  curl -H "Authorization: Bearer $TOKEN" http://localhost:8200/v1/ethereum/export/accounts/0x54edadf1696986c1884534bc6b633ff9a7fdb747 |jq
-
-{
-  "request_id": "a183425c-0998-0888-c768-8dda4ff60bef",
-  "lease_id": "",
-  "renewable": false,
-  "lease_duration": 0,
-  "data": {
-    "address": "0xb579cbf259a8d36b22f2799eeeae5f3553b11eb7",
-    "privateKey": "ec85999367d32fbbe02dd600a2a44550b95274cc67d14375a9f0bce233f13ad2"
-  },
-  "wrap_info": null,
-  "warnings": null,
-  "auth": null
-}
-```
-
-Using the command line:
-```
-$ vault read eth/export/accounts/0xd5bcc62d9b1087a5cfec116c24d6187dd40fdf8a
-
-Key           Value
----           -----
-address       0xd5bcc62d9b1087a5cfec116c24d6187dd40fdf8a
-privateKey    ec85999367d32fbbe02dd600a2a44550b95274cc67d14375a9f0bce233f13ad2
 ```
 
 ### Sign A Transaction
