@@ -104,12 +104,38 @@ async function sendAndSendBack(
   );
 
   const amount = ethers.utils.parseEther('0.0001');
-  const tx = await signer.sendTransaction({
+  const _tx = await signer.sendTransaction({
     to: wallet.address,
     value: amount,
   });
+  await _tx.wait();
+
+  const {lastArg, returnValue} =
+    HashicorpVaultSigner.prototype.signTransaction.lastCall;
+  const signedTx = ethers.utils.parseTransaction(await returnValue);
+
+  let tx = await ethers.provider.getTransaction(_tx.hash);
+  assert.equal(tx.type, lastArg.type);
+  assert.equal(tx.from, signer.address);
+  assert.equal(tx.from, lastArg.from);
+  assert.equal(tx.to, wallet.address);
+  assert.equal(tx.to, lastArg.to);
   assert.equal(tx.nonce, 0);
-  receipt = await tx.wait();
+  assert.equal(tx.nonce, lastArg.nonce);
+  assert.ok(tx.gasPrice);
+  assert.equal(tx.data, signedTx.data);
+  assert.equal(tx.chainId, lastArg.chainId);
+  assert.deepEqual(tx.value, ethers.BigNumber.from(lastArg.value));
+  assert.deepEqual(tx.gasLimit, lastArg.gasLimit);
+  assert.deepEqual(tx.maxFeePerGas, lastArg.maxFeePerGas);
+  assert.deepEqual(tx.maxPriorityFeePerGas, lastArg.maxPriorityFeePerGas);
+  assert.deepEqual(tx.accessList, signedTx.accessList);
+  assert.equal(tx.r, signedTx.r);
+  assert.equal(tx.s, signedTx.s);
+  assert.equal(tx.v, signedTx.v);
+
+  receipt = await ethers.provider.getTransactionReceipt(_tx.hash);
+
   assert.equal(receipt.from, signer.address);
   assert.equal(receipt.to, wallet.address);
   const gasUsed = receipt.cumulativeGasUsed.mul(receipt.effectiveGasPrice);
@@ -140,9 +166,32 @@ async function deployAndVerify(
     value: lockedAmount,
   });
   await lock.deployed();
-  let tx = lock.deployTransaction;
+  const {lastArg, returnValue} =
+    HashicorpVaultSigner.prototype.signTransaction.lastCall;
+  const signedTx = ethers.utils.parseTransaction(await returnValue);
+
+  let tx = await ethers.provider.getTransaction(lock.deployTransaction.hash);
+  assert.equal(tx.type, lastArg.type);
+  assert.equal(tx.from, signer.address);
+  assert.equal(tx.from, lastArg.from);
+  assert.equal(tx.to, null);
   assert.equal(tx.nonce, 1);
-  let receipt = await ethers.provider.getTransactionReceipt(tx.hash);
+  assert.equal(tx.nonce, lastArg.nonce);
+  assert.ok(tx.gasPrice);
+  assert.equal(tx.data, lastArg.data);
+  assert.equal(tx.chainId, lastArg.chainId);
+  assert.deepEqual(tx.value, ethers.BigNumber.from(lastArg.value));
+  assert.deepEqual(tx.gasLimit, lastArg.gasLimit);
+  assert.deepEqual(tx.maxFeePerGas, lastArg.maxFeePerGas);
+  assert.deepEqual(tx.maxPriorityFeePerGas, lastArg.maxPriorityFeePerGas);
+  assert.deepEqual(tx.accessList, signedTx.accessList);
+  assert.equal(tx.r, signedTx.r);
+  assert.equal(tx.s, signedTx.s);
+  assert.equal(tx.v, signedTx.v);
+
+  let receipt = await ethers.provider.getTransactionReceipt(
+    lock.deployTransaction.hash,
+  );
   assert.equal(receipt.from, signer.address);
   assert.equal(receipt.to, null);
   assert.equal(receipt.contractAddress, lock.address);

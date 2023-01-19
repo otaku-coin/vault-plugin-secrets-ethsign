@@ -110,21 +110,84 @@ describe('HashicorpVaultSigner', () => {
     });
 
     it('should call signTransaction from contract deploying', async () => {
-      let lock = await Lock.deploy(unlockTime, {
+      const [deployer] = await ethers.getSigners();
+      assert.notEqual(signer.address, deployer.address);
+
+      const defaultContract = await Lock.deploy(unlockTime, {
         value: lockedAmount,
       });
+      await defaultContract.deployed();
+      const defaultTx = await ethers.provider.getTransaction(
+        defaultContract.deployTransaction.hash,
+      );
+      assert.equal(defaultTx.from, deployer.address);
+      const defaultReceipt = await ethers.provider.getTransactionReceipt(
+        defaultContract.deployTransaction.hash,
+      );
       assert.equal(HashicorpVaultSigner.prototype.signTransaction.callCount, 0);
 
-      lock = await Lock.connect(signer).deploy(unlockTime, {
+      const signerContract = await Lock.connect(signer).deploy(unlockTime, {
         value: lockedAmount,
       });
+      await signerContract.deployed();
+
+      const signerTx = await ethers.provider.getTransaction(
+        signerContract.deployTransaction.hash,
+      );
+      assert.equal(signerTx.from, signer.address);
+      const signerReceipt = await ethers.provider.getTransactionReceipt(
+        signerContract.deployTransaction.hash,
+      );
+
       assert.equal(HashicorpVaultSigner.prototype.signTransaction.callCount, 1);
       const {lastArg, returnValue} =
-        HashicorpVaultSigner.prototype.signTransaction.getCall(0);
+        HashicorpVaultSigner.prototype.signTransaction.lastCall;
       assert.equal(lastArg.from, signer.address);
-      const signedTx = parseTransaction(await returnValue);
-      assert.equal(signedTx.from, signer.address);
-      assert.equal(signedTx.data, lastArg.data);
+      const tx = parseTransaction(await returnValue);
+      assert.equal(tx.from, signer.address);
+      assert.equal(tx.data, lastArg.data);
+
+      assert.equal(lastArg.type, signerTx.type);
+      assert.equal(lastArg.from, signerTx.from);
+      assert.equal(lastArg.data, signerTx.data);
+      assert.equal(lastArg.chainId, signerTx.chainId);
+      assert.equal(lastArg.nonce, signerTx.nonce);
+      assert.deepEqual(ethers.BigNumber.from(lastArg.value), signerTx.value);
+      assert.deepEqual(lastArg.gasLimit, signerTx.gasLimit);
+      assert.deepEqual(lastArg.maxFeePerGas, signerTx.maxFeePerGas);
+      assert.deepEqual(
+        lastArg.maxPriorityFeePerGas,
+        signerTx.maxPriorityFeePerGas,
+      );
+      assert.deepEqual(tx.accessList, signerTx.accessList);
+      assert.equal(tx.r, signerTx.r);
+      assert.equal(tx.s, signerTx.s);
+      assert.equal(tx.v, signerTx.v);
+      assert.equal(signerTx.to, null);
+      assert.equal(signerTx.from, signer.address);
+
+      assert.equal(lastArg.type, defaultTx.type);
+      assert.notEqual(lastArg.from, defaultTx.from);
+      assert.equal(lastArg.data, defaultTx.data);
+      assert.equal(lastArg.chainId, defaultTx.chainId);
+      assert.deepEqual(ethers.BigNumber.from(lastArg.value), defaultTx.value);
+      assert.deepEqual(lastArg.gasLimit, defaultTx.gasLimit);
+      assert.equal(defaultTx.to, null);
+      assert.equal(defaultTx.from, deployer.address);
+      assert.deepEqual(defaultTx.accessList, defaultTx.accessList);
+
+      assert.notEqual(signerTx.hash, defaultTx.hash);
+      assert.notEqual(signerTx.r, defaultTx.r);
+      assert.notEqual(signerTx.s, defaultTx.s);
+      assert.notEqual(signerTx.creates, defaultTx.creates);
+
+      assert.equal(signerReceipt.contractAddress, signerContract.address);
+      assert.equal(defaultReceipt.contractAddress, defaultContract.address);
+      assert.deepEqual(signerReceipt.gasUsed, defaultReceipt.gasUsed);
+      assert.deepEqual(
+        signerReceipt.cumulativeGasUsed,
+        defaultReceipt.cumulativeGasUsed,
+      );
     });
 
     it('should throw error for unknown address', async () => {
@@ -139,8 +202,7 @@ describe('HashicorpVaultSigner', () => {
         },
       );
       assert.equal(HashicorpVaultSigner.prototype.signTransaction.callCount, 1);
-      const {lastArg} =
-        HashicorpVaultSigner.prototype.signTransaction.getCall(0);
+      const {lastArg} = HashicorpVaultSigner.prototype.signTransaction.lastCall;
       assert.equal(lastArg.from, unknownSigner.address);
     });
   });
