@@ -11,7 +11,7 @@ The plugin only exposes the following endpoints to enable the client to generate
 ## Build
 These dependencies are needed:
 
-* go 1.16
+* go 1.19
 
 To build the binary:
 ```
