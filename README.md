@@ -68,18 +68,18 @@ Before enabling the plugin on the server, it must first be registered.
 
 First copy the binary to the plugin folder for the server (consult the configuration file for the plugin folder location). Then calculate a SHA256 hash for the binary.
 ```
-shasum -a 256 ./ethsign
+SHA=$(shasum -a 256 ./ethsign | cut -d' ' -f1)
 ```
 
 Use the hash to register the plugin with vault:
 ```
- ./vault write sys/plugins/catalog/eth-hsm sha_256=$SHA command="ethsign"
+ ./vault write sys/plugins/catalog/secret/ethsign sha_256=$SHA command="ethsign"
 ```
 > If the target vault server is enabled for TLS, and is using a self-signed certificate or other non-verifiable TLS certificate, then the command value needs to contain the switch to turn off TLS verify: `command="ethsign -tls-skip-verify"`
 
 Once registered, just like in dev mode, it's ready to be enabled as a secret engine:
 ```
- ./vault secrets enable -path=ethereum -description="Eth Signing Wallet" -plugin-name=ethsign plugin
+ ./vault secrets enable -path=ethereum -description="Ethers.js Signing Wallet" -plugin-name=ethsign plugin
 ```
 
 ## Interacting with the ethsign Plugin
