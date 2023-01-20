@@ -26,7 +26,7 @@ const {arrayify, verifyMessage, hashMessage, splitSignature, parseTransaction} =
 // NOTE To test with self signed certificate enabled vault server,
 // set BASE_URL to `https` URL, set tokens to your token, and enable
 // httpsAgent of defaultAxiosRequestConfig that comment-outed below.
-const BASE_URL = 'https://localhost:8200';
+const BASE_URL = 'http://localhost:8200';
 const ADMIN_TOKEN = 'root';
 const DEV_TOKEN = 'root';
 const defaultAxiosRequestConfig = {
