@@ -16,15 +16,37 @@ Vault token `TOKEN`, and Ethereum address on ethsign vault plugin.
 
 ```
 const signer = new HashicorpVaultSigner(
+  ADDRESS,
   VAULT_ADDR,
   TOKEN,
-  ADDRESS,
   ethers.provider,
 );
 
 const contract = await YourContract.connect(signer).deploy();
 await lock.deployed();
 ```
+
+If you want to set extra options for HashicorpVaultSigner,
+use a HashicorpVaultSignerOptions type.
+
+```
+export type HashicorpVaultSignerOptions = {
+  // VAULT_ADDR from vault server
+  baseUrl: string;
+  // Vault token
+  token: string;
+
+  // `path` parameter that you specified at `vault secrets enable` ethsign
+  // plugin. default value is "ethereum"
+  pluginPath?: string;
+
+  // AxiosRequestConfig for api requests
+  axiosRequestConfig?: AxiosRequestConfig;
+};
+```
+
+Set `rejectUnauthorized: false` to axiosRequestConfig when you use self signed
+certificate for vault tls.
 
 ## Testing
 
