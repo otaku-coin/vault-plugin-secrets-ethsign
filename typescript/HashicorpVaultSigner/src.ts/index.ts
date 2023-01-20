@@ -12,13 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {
-  ethers,
-  UnsignedTransaction,
-  Signature,
-  Bytes,
-  BytesLike,
-} from 'ethers';
+import {ethers, UnsignedTransaction, Signature, Bytes, BytesLike} from 'ethers';
 import axios, {AxiosRequestConfig} from 'axios';
 
 const {
@@ -33,16 +27,37 @@ const {
   serializeTransaction,
 } = ethers.utils;
 
+export type HashicorpVaultSignerOptions = {
+  baseUrl: string;
+  token: string;
+  pluginPath?: string;
+  axiosRequestConfig?: AxiosRequestConfig;
+};
+
+const DEFAULT_PLUGIN_PATH = 'ethereum';
+
 export class HashicorpVaultSigner extends ethers.Signer {
-  readonly baseUrl: string;
-  readonly token: string;
   readonly address: string;
+  readonly options: HashicorpVaultSignerOptions;
   readonly provider: ethers.providers.Provider | undefined;
 
   constructor(
+    address: string,
     baseUrl: string,
     token: string,
+    provider?: ethers.providers.Provider,
+  );
+
+  constructor(
     address: string,
+    options: HashicorpVaultSignerOptions,
+    provider?: ethers.providers.Provider,
+  );
+
+  constructor(
+    address: string,
+    baseUrlOrOptions: string | HashicorpVaultSignerOptions,
+    tokenOrProvider?: string | ethers.providers.Provider,
     provider?: ethers.providers.Provider,
   ) {
     super();
@@ -50,14 +65,45 @@ export class HashicorpVaultSigner extends ethers.Signer {
     // ethers.utils.defineReadOnly may cause `error TS2564: Property 'X' has
     // no initializer and is not definitely assigned in the constructor.` and
     // I don't known how to solve it.
-    this.baseUrl = baseUrl;
-    this.token = token;
     this.address = getAddress(address);
-    this.provider = provider;
+
+    if (typeof baseUrlOrOptions === 'string') {
+      this.options = {
+        baseUrl: baseUrlOrOptions,
+        token: tokenOrProvider,
+      };
+      this.provider = provider;
+    } else {
+      this.options = {...baseUrlOrOptions};
+      this.provider = tokenOrProvider;
+    }
   }
 
   getAddress(): Promise<string> {
     return Promise.resolve(this.address);
+  }
+
+  signDigestUrl(): string {
+    const address = this.address.toLowerCase();
+    return `${this.options.baseUrl}/v1/${
+      this.options.pluginPath ?? DEFAULT_PLUGIN_PATH
+    }/accounts/${address}/sign_digest`;
+  }
+
+  convineAxiosRequestConfig(
+    axiosRequestConfig: AxiosRequestConfig,
+  ): AxiosRequestConfig {
+    const conf = {
+      ...(this.options.axiosRequestConfig ?? {}),
+      ...axiosRequestConfig,
+    };
+    conf.headers = {
+      ...(conf.headers ?? {}),
+      ...{
+        Authorization: `Bearer ${this.options.token}`,
+      },
+    };
+    return conf;
   }
 
   async signDigest(digest: BytesLike): Promise<Signature> {
@@ -67,19 +113,15 @@ export class HashicorpVaultSigner extends ethers.Signer {
     }
     const hash = hexlify(digestBytes);
 
-    const address = this.address.toLowerCase();
-    const url = `${this.baseUrl}/v1/ethereum/accounts/${address}/sign_digest`;
-    const config: AxiosRequestConfig = {
+    const url = this.signDigestUrl();
+    let axiosConfig: AxiosRequestConfig = this.convineAxiosRequestConfig({
       url,
       method: 'post',
       responseType: 'json',
       data: {hash},
-      headers: {
-        Authorization: `Bearer ${this.token}`,
-      },
-    };
+    });
 
-    const resp = await axios(config);
+    const resp = await axios(axiosConfig);
     return splitSignature(resp.data.data.signature);
   }
 
@@ -109,11 +151,6 @@ export class HashicorpVaultSigner extends ethers.Signer {
   }
 
   connect(provider: ethers.providers.Provider): HashicorpVaultSigner {
-    return new HashicorpVaultSigner(
-      this.baseUrl,
-      this.address,
-      this.token,
-      provider,
-    );
+    return new HashicorpVaultSigner(this.address, this.options, provider);
   }
 }
