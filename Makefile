@@ -1,4 +1,4 @@
-VGO=go # Set to vgo if building in Go 1.10
+VGO?=go # Set to vgo if building in Go 1.10
 BINARY_NAME=ethsign
 SRC_GOFILES := $(shell find . -name '*.go' -print)
 .DELETE_ON_ERROR:
