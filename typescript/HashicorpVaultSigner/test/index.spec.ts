@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import {strict as assert} from 'assert';
+import https from 'https';
 import {ethers, Wallet} from 'hardhat';
 import {time} from '@nomicfoundation/hardhat-network-helpers';
 import axios, {AxiosRequestConfig} from 'axios';
@@ -22,17 +23,32 @@ import {HashicorpVaultSigner} from '../src.ts/index';
 const {arrayify, verifyMessage, hashMessage, splitSignature, parseTransaction} =
   ethers.utils;
 
-const BASE_URL = 'http://127.0.0.1:8200';
-const TOKEN = 'root';
+// NOTE To test with self signed certificate enabled vault server,
+// set BASE_URL to `https` URL, set tokens to your token, and enable
+// httpsAgent of defaultAxiosRequestConfig that comment-outed below.
+const BASE_URL = 'https://localhost:8200';
+const ADMIN_TOKEN = 'root';
+const DEV_TOKEN = 'root';
+const defaultAxiosRequestConfig = {
+  /*
+  httpsAgent: new https.Agent({
+    keepAlive: true,
+    rejectUnauthorized: false,
+    // required IPv6 access to MacOSX localhost, otherwise I don't know
+    family: 6,
+  }),
+  */
+};
 
 async function registerWallet(wallet: Wallet) {
   const config: AxiosRequestConfig = {
+    ...defaultAxiosRequestConfig,
     method: 'post',
     url: `${BASE_URL}/v1/ethereum/accounts`,
     responseType: 'json',
     data: {privateKey: wallet.privateKey},
     headers: {
-      Authorization: `Bearer ${TOKEN}`,
+      Authorization: `Bearer ${ADMIN_TOKEN}`,
     },
   };
   const resp = await axios(config);
@@ -116,6 +132,12 @@ describe('HashicorpVaultSigner', () => {
     let unknownSigner: HashicorpVaultSigner;
 
     before(async () => {
+      const options = {
+        baseUrl: BASE_URL,
+        token: DEV_TOKEN,
+        axiosRequestConfig: defaultAxiosRequestConfig,
+      };
+
       const accounts = config.networks.hardhat.accounts;
       wallet = ethers.Wallet.fromMnemonic(
         accounts.mnemonic,
@@ -124,16 +146,14 @@ describe('HashicorpVaultSigner', () => {
       await registerWallet(wallet);
       signer = new HashicorpVaultSigner(
         wallet.address,
-        BASE_URL,
-        TOKEN,
+        options,
         ethers.provider,
       );
       assert.equal(wallet.address, signer.address);
 
       unknownSigner = new HashicorpVaultSigner(
         ethers.Wallet.createRandom().address,
-        BASE_URL,
-        TOKEN,
+        options,
         ethers.provider,
       );
     });
