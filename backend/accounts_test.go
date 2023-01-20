@@ -218,10 +218,8 @@ func TestAccounts(t *testing.T) {
 	req = logical.TestRequest(t, logical.ReadOperation, "export/accounts/0xd5bcc62d9b1087a5cfec116c24d6187dd40fdf8a")
 	req.Storage = storage
 	res, err = b.HandleRequest(context.Background(), req)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	assert.Equal("ec85999367d32fbbe02dd600a2a44550b95274cc67d14375a9f0bce233f13ad2", res.Data["privateKey"])
+	assert.Nil(res)
+	assert.Equal("unsupported path", err.Error())
 
 	// validate de-dup of same private keys imported multiple times
 	req = logical.TestRequest(t, logical.ListOperation, "accounts")
@@ -376,7 +374,7 @@ func TestExportAccountsFailure1(t *testing.T) {
 	resp, err := b.HandleRequest(context.Background(), req)
 
 	assert.Nil(resp)
-	assert.Equal("Bang for Get!", err.Error())
+	assert.Equal("unsupported path", err.Error())
 }
 
 func TestExportAccountsFailure2(t *testing.T) {
@@ -390,7 +388,7 @@ func TestExportAccountsFailure2(t *testing.T) {
 	resp, err := b.HandleRequest(context.Background(), req)
 
 	assert.Nil(resp)
-	assert.Equal("Account does not exist", err.Error())
+	assert.Equal("unsupported path", err.Error())
 }
 
 func TestDeleteAccountsFailure1(t *testing.T) {

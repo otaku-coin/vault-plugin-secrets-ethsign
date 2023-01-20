@@ -46,7 +46,6 @@ func paths(b *backend) []*framework.Path {
 	return []*framework.Path{
 		pathCreateAndList(b),
 		pathReadAndDelete(b),
-		pathExport(b),
 		pathSignDigest(b),
 	}
 }
