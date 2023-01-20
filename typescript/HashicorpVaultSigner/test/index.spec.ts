@@ -13,19 +13,27 @@
 // limitations under the License.
 
 import {strict as assert} from 'assert';
+import http from 'http';
 import https from 'https';
+import tcpPortUsed from 'tcp-port-used';
 import {ethers, Wallet} from 'hardhat';
 import {time} from '@nomicfoundation/hardhat-network-helpers';
 import axios, {AxiosRequestConfig} from 'axios';
 import sinon from 'sinon';
 import {HashicorpVaultSigner} from '../src.ts/index';
+import {createMockServer} from './mock';
 
 const {arrayify, verifyMessage, hashMessage, splitSignature, parseTransaction} =
   ethers.utils;
 
+// Start mock server if useMockServer is true and localhost:8200 port is free.
+// Otherwise, connect to BASE_URL vault server.
+const useMockServer = true;
+
 // NOTE To test with self signed certificate enabled vault server,
-// set BASE_URL to `https` URL, set tokens to your token, and enable
-// httpsAgent of defaultAxiosRequestConfig that comment-outed below.
+// set useMockServer = false, BASE_URL to `https` URL,
+// set tokens to your token, and enable httpsAgent of defaultAxiosRequestConfig
+// that comment-outed below.
 const BASE_URL = 'http://localhost:8200';
 const ADMIN_TOKEN = 'root';
 const DEV_TOKEN = 'root';
@@ -55,6 +63,16 @@ async function registerWallet(wallet: Wallet) {
 }
 
 describe('HashicorpVaultSigner', () => {
+  let server: http.Server | undefined;
+  before(async () => {
+    if (await tcpPortUsed.check(8200, 'localhost')) {
+      console.log("Skip mock server");
+    } else {
+      server = createMockServer();
+    }
+  });
+  after(() => server?.close());
+
   describe('constructors and related', () => {
     it('should set options with 4 arguments', () => {
       const signer = new HashicorpVaultSigner(
