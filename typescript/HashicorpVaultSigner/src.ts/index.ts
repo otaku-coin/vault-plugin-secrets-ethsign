@@ -147,7 +147,8 @@ export class HashicorpVaultSigner extends ethers.Signer {
     const signature = await this.signDigest(
       keccak256(serializeTransaction(<UnsignedTransaction>tx)),
     );
-    return serializeTransaction(<UnsignedTransaction>tx, signature);
+    const signedTx = serializeTransaction(<UnsignedTransaction>tx, signature);
+    return signedTx;
   }
 
   connect(provider: ethers.providers.Provider): HashicorpVaultSigner {
