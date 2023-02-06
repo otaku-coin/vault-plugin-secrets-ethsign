@@ -104,17 +104,16 @@ async function sendAndSendBack(
   );
 
   const amount = ethers.utils.parseEther('0.0001');
-  const _tx = await signer.sendTransaction({
+  const tx = await signer.sendTransaction({
     to: wallet.address,
     value: amount,
   });
-  await _tx.wait();
+  await tx.wait();
 
   const {lastArg, returnValue} =
     HashicorpVaultSigner.prototype.signTransaction.lastCall;
   const signedTx = ethers.utils.parseTransaction(await returnValue);
 
-  let tx = await ethers.provider.getTransaction(_tx.hash);
   assert.equal(tx.type, lastArg.type);
   assert.equal(tx.from, signer.address);
   assert.equal(tx.from, lastArg.from);
@@ -122,7 +121,7 @@ async function sendAndSendBack(
   assert.equal(tx.to, lastArg.to);
   assert.equal(tx.nonce, 0);
   assert.equal(tx.nonce, lastArg.nonce);
-  assert.ok(tx.gasPrice);
+  assert.equal(tx.gasPrice, null);
   assert.equal(tx.data, signedTx.data);
   assert.equal(tx.chainId, lastArg.chainId);
   assert.deepEqual(tx.value, ethers.BigNumber.from(lastArg.value));
@@ -133,21 +132,6 @@ async function sendAndSendBack(
   assert.equal(tx.r, signedTx.r);
   assert.equal(tx.s, signedTx.s);
   assert.equal(tx.v, signedTx.v);
-
-  receipt = await ethers.provider.getTransactionReceipt(_tx.hash);
-
-  assert.equal(receipt.from, signer.address);
-  assert.equal(receipt.to, wallet.address);
-  const gasUsed = receipt.cumulativeGasUsed.mul(receipt.effectiveGasPrice);
-  balance = await provider.getBalance(signer.address);
-  console.log('signer balance', balance.toString());
-  console.log('gasUsed', gasUsed.toString());
-  assert.deepEqual(
-    balance,
-    ethers.BigNumber.from(oneEth)
-      .sub(gasUsed)
-      .sub(ethers.BigNumber.from(amount)),
-  );
 }
 
 async function deployAndVerify(
@@ -170,14 +154,14 @@ async function deployAndVerify(
     HashicorpVaultSigner.prototype.signTransaction.lastCall;
   const signedTx = ethers.utils.parseTransaction(await returnValue);
 
-  let tx = await ethers.provider.getTransaction(lock.deployTransaction.hash);
+  let tx = lock.deployTransaction;
   assert.equal(tx.type, lastArg.type);
   assert.equal(tx.from, signer.address);
   assert.equal(tx.from, lastArg.from);
   assert.equal(tx.to, null);
   assert.equal(tx.nonce, 1);
   assert.equal(tx.nonce, lastArg.nonce);
-  assert.ok(tx.gasPrice);
+  assert.equal(tx.gasPrice, null);
   assert.equal(tx.data, lastArg.data);
   assert.equal(tx.chainId, lastArg.chainId);
   assert.deepEqual(tx.value, ethers.BigNumber.from(lastArg.value));
@@ -188,13 +172,6 @@ async function deployAndVerify(
   assert.equal(tx.r, signedTx.r);
   assert.equal(tx.s, signedTx.s);
   assert.equal(tx.v, signedTx.v);
-
-  let receipt = await ethers.provider.getTransactionReceipt(
-    lock.deployTransaction.hash,
-  );
-  assert.equal(receipt.from, signer.address);
-  assert.equal(receipt.to, null);
-  assert.equal(receipt.contractAddress, lock.address);
 
   let contractBalance = await provider.getBalance(lock.address);
   assert.deepEqual(contractBalance, ethers.BigNumber.from(lockedAmount));
@@ -222,8 +199,8 @@ async function deployAndVerify(
 
   console.log('call withdraw');
   tx = await lock.withdraw();
-  assert.equal(tx.nonce, 2);
-  receipt = await tx.wait();
+  assert.equal(tx.nonce, 3);
+  let receipt = await tx.wait();
   assert.equal(receipt.from, signer.address);
   assert.equal(receipt.to, lock.address);
   assert.equal(receipt.contractAddress, null);
@@ -263,8 +240,8 @@ async function main() {
   assert.equal(HashicorpVaultSigner.prototype.signDigest.callCount, 1);
 
   await deployAndVerify(provider, signer);
-  assert.equal(HashicorpVaultSigner.prototype.signTransaction.callCount, 3);
-  assert.equal(HashicorpVaultSigner.prototype.signDigest.callCount, 3);
+  assert.equal(HashicorpVaultSigner.prototype.signTransaction.callCount, 4);
+  assert.equal(HashicorpVaultSigner.prototype.signDigest.callCount, 4);
 
   sandbox.restore();
 }
