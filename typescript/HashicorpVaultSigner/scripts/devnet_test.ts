@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import fs from 'node:fs/promises';
 import path from 'path';
 import {strict as assert} from 'assert';
 import process from 'process';
