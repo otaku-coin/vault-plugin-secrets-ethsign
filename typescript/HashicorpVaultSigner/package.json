@@ -6,7 +6,7 @@
   "main": "./lib/index.js",
   "scripts": {
     "build": "tsc -p ./tsconfig.json",
-    "prettier": "npx prettier --write src.ts test",
+    "prettier": "npx prettier --write src.ts scripts/*.ts test",
     "test": "npx hardhat test",
     "gethdev": "./scripts/gethdev.sh",
     "vaultdev": "./scripts/vaultdev.sh",
