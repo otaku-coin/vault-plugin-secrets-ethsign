@@ -12,17 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import http, {IncomingMessage, ServerResponse} from 'http';
-import {ethers, utils, Wallet} from 'ethers';
-const {joinSignature} = utils;
+import http, { IncomingMessage, ServerResponse } from "http";
+import { ethers, utils, Wallet } from "ethers";
+const { joinSignature } = utils;
 
 function readBody(req: IncomingMessage): Promise<string> {
-  return new Promise(fulfil => {
-    let body = '';
-    req.on('data', chunk => {
+  return new Promise((fulfil) => {
+    let body = "";
+    req.on("data", (chunk) => {
       body += chunk;
     });
-    req.on('end', () => {
+    req.on("end", () => {
       fulfil(body);
     });
   });
@@ -37,21 +37,21 @@ const privateKeys = new Map<string, Wallet>();
 
 async function accounts(req: IncomingMessage, res: ServerResponse) {
   const body = await readJsonBody(req);
-  let privateKey: string = body['privateKey'];
-  privateKey = privateKey.replace('/^0x/', '');
+  let privateKey: string = body["privateKey"];
+  privateKey = privateKey.replace("/^0x/", "");
 
   const wallet = new Wallet(privateKey);
   console.log(`Register address ${wallet.address.toLowerCase()}`);
   privateKeys.set(wallet.address.toLowerCase(), wallet);
 
-  res.writeHead(200, {'Content-Type': 'application/json'});
-  res.end(JSON.stringify({data: {address: wallet.address}}), 'utf-8');
+  res.writeHead(200, { "Content-Type": "application/json" });
+  res.end(JSON.stringify({ data: { address: wallet.address } }), "utf-8");
 }
 
 async function sign(
   req: IncomingMessage,
   res: ServerResponse,
-  address: string,
+  address: string
 ) {
   const wallet = privateKeys.get(address);
   if (!wallet) {
@@ -63,21 +63,21 @@ async function sign(
 
   const signature = joinSignature(wallet._signingKey().signDigest(hash));
 
-  res.writeHead(200, {'Content-Type': 'application/json'});
-  res.end(JSON.stringify({data: {signature}}), 'utf-8');
+  res.writeHead(200, { "Content-Type": "application/json" });
+  res.end(JSON.stringify({ data: { signature } }), "utf-8");
 }
 
 async function requestListener(req: IncomingMessage, res: ServerResponse) {
   console.log(req.url);
 
   try {
-    if (req.url === '/v1/ethereum/accounts') {
+    if (req.url === "/v1/ethereum/accounts") {
       await accounts(req, res);
       return;
     }
 
     const matcher = req.url?.match(
-      /^\/v1\/ethereum\/accounts\/(.*)\/sign_digest$/,
+      /^\/v1\/ethereum\/accounts\/(.*)\/sign_digest$/
     );
     if (matcher != null) {
       await sign(req, res, matcher[1]);
@@ -91,13 +91,13 @@ async function requestListener(req: IncomingMessage, res: ServerResponse) {
     }
   }
 
-  res.writeHead(500, {'Content-Type': 'application/json'});
-  res.end('{}', 'utf-8');
+  res.writeHead(500, { "Content-Type": "application/json" });
+  res.end("{}", "utf-8");
 }
 
 export function createMockServer(): http.Server {
   const server = http.createServer(requestListener);
   server.listen(8200);
-  console.log('Starting mock server on :8200');
+  console.log("Starting mock server on :8200");
   return server;
 }

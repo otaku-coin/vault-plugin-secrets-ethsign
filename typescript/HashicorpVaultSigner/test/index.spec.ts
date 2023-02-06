@@ -12,19 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {strict as assert} from 'assert';
-import http from 'http';
-import https from 'https';
-import tcpPortUsed from 'tcp-port-used';
-import {ethers, Wallet} from 'hardhat';
-import {time} from '@nomicfoundation/hardhat-network-helpers';
-import axios, {AxiosRequestConfig} from 'axios';
-import sinon from 'sinon';
-import {HashicorpVaultSigner} from '../src.ts/index';
-import {createMockServer} from './mock';
+import { strict as assert } from "assert";
+import http from "http";
+import https from "https";
+import tcpPortUsed from "tcp-port-used";
+import { ethers, Wallet } from "hardhat";
+import { time } from "@nomicfoundation/hardhat-network-helpers";
+import axios, { AxiosRequestConfig } from "axios";
+import sinon from "sinon";
+import { HashicorpVaultSigner } from "../src.ts/index";
+import { createMockServer } from "./mock";
 
-const {arrayify, verifyMessage, hashMessage, splitSignature, parseTransaction} =
-  ethers.utils;
+const {
+  arrayify,
+  verifyMessage,
+  hashMessage,
+  splitSignature,
+  parseTransaction,
+} = ethers.utils;
 
 // Start mock server if useMockServer is true and localhost:8200 port is free.
 // Otherwise, connect to BASE_URL vault server.
@@ -34,9 +39,9 @@ const useMockServer = true;
 // set useMockServer = false, BASE_URL to `https` URL,
 // set tokens to your token, and enable httpsAgent of defaultAxiosRequestConfig
 // that comment-outed below.
-const BASE_URL = 'http://localhost:8200';
-const ADMIN_TOKEN = 'root';
-const DEV_TOKEN = 'root';
+const BASE_URL = "http://localhost:8200";
+const ADMIN_TOKEN = "root";
+const DEV_TOKEN = "root";
 const defaultAxiosRequestConfig = {
   /*
   httpsAgent: new https.Agent({
@@ -51,10 +56,10 @@ const defaultAxiosRequestConfig = {
 async function registerWallet(wallet: Wallet) {
   const config: AxiosRequestConfig = {
     ...defaultAxiosRequestConfig,
-    method: 'post',
+    method: "post",
     url: `${BASE_URL}/v1/ethereum/accounts`,
-    responseType: 'json',
-    data: {privateKey: wallet.privateKey},
+    responseType: "json",
+    data: { privateKey: wallet.privateKey },
     headers: {
       Authorization: `Bearer ${ADMIN_TOKEN}`,
     },
@@ -62,10 +67,10 @@ async function registerWallet(wallet: Wallet) {
   const resp = await axios(config);
 }
 
-describe('HashicorpVaultSigner', () => {
+describe("HashicorpVaultSigner", () => {
   let server: http.Server | undefined;
   before(async () => {
-    if (await tcpPortUsed.check(8200, 'localhost')) {
+    if (await tcpPortUsed.check(8200, "localhost")) {
       console.log("Skip mock server");
     } else {
       server = createMockServer();
@@ -73,77 +78,77 @@ describe('HashicorpVaultSigner', () => {
   });
   after(() => server?.close());
 
-  describe('constructors and related', () => {
-    it('should set options with 4 arguments', () => {
+  describe("constructors and related", () => {
+    it("should set options with 4 arguments", () => {
       const signer = new HashicorpVaultSigner(
-        '0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266',
-        'http://example.com',
-        'TOKEN',
-        ethers.provider,
+        "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+        "http://example.com",
+        "TOKEN",
+        ethers.provider
       );
       assert.equal(
         signer.signDigestUrl(),
-        'http://example.com/v1/ethereum/accounts/0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266/sign_digest',
+        "http://example.com/v1/ethereum/accounts/0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266/sign_digest"
       );
       assert.deepEqual(signer.convineAxiosRequestConfig({}), {
-        headers: {Authorization: 'Bearer TOKEN'},
+        headers: { Authorization: "Bearer TOKEN" },
       });
       assert.deepEqual(signer.provider, ethers.provider);
     });
 
-    it('should set options with 3 arguments nor pluginPath', () => {
+    it("should set options with 3 arguments nor pluginPath", () => {
       const signer = new HashicorpVaultSigner(
-        '0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266',
+        "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
         {
-          baseUrl: 'https://example.com',
-          token: 'token',
+          baseUrl: "https://example.com",
+          token: "token",
           axiosRequestConfig: {
-            baseURL: 'https://example.com',
-            headers: {'X-HEADER': 'defined'},
+            baseURL: "https://example.com",
+            headers: { "X-HEADER": "defined" },
           },
         },
-        ethers.provider,
+        ethers.provider
       );
 
       assert.equal(
         signer.signDigestUrl(),
-        'https://example.com/v1/ethereum/accounts/0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266/sign_digest',
+        "https://example.com/v1/ethereum/accounts/0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266/sign_digest"
       );
       assert.deepEqual(signer.convineAxiosRequestConfig({}), {
-        baseURL: 'https://example.com',
-        headers: {Authorization: 'Bearer token', 'X-HEADER': 'defined'},
+        baseURL: "https://example.com",
+        headers: { Authorization: "Bearer token", "X-HEADER": "defined" },
       });
       assert.deepEqual(signer.provider, ethers.provider);
     });
 
-    it('should set options with 3 arguments and pluginPath', () => {
+    it("should set options with 3 arguments and pluginPath", () => {
       const signer = new HashicorpVaultSigner(
-        '0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266',
+        "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
         {
-          baseUrl: 'https://example.com',
-          token: 'token',
-          pluginPath: 'ethhsv',
+          baseUrl: "https://example.com",
+          token: "token",
+          pluginPath: "ethhsv",
           axiosRequestConfig: {
-            baseURL: 'https://example.com',
-            headers: {'X-HEADER': 'defined'},
+            baseURL: "https://example.com",
+            headers: { "X-HEADER": "defined" },
           },
         },
-        ethers.provider,
+        ethers.provider
       );
 
       assert.equal(
         signer.signDigestUrl(),
-        'https://example.com/v1/ethhsv/accounts/0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266/sign_digest',
+        "https://example.com/v1/ethhsv/accounts/0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266/sign_digest"
       );
       assert.deepEqual(signer.convineAxiosRequestConfig({}), {
-        baseURL: 'https://example.com',
-        headers: {Authorization: 'Bearer token', 'X-HEADER': 'defined'},
+        baseURL: "https://example.com",
+        headers: { Authorization: "Bearer token", "X-HEADER": "defined" },
       });
       assert.deepEqual(signer.provider, ethers.provider);
     });
   });
 
-  describe('signature', () => {
+  describe("signature", () => {
     const sandbox = sinon.createSandbox();
     let wallet: Wallet;
     let signer: HashicorpVaultSigner;
@@ -159,50 +164,50 @@ describe('HashicorpVaultSigner', () => {
       const accounts = config.networks.hardhat.accounts;
       wallet = ethers.Wallet.fromMnemonic(
         accounts.mnemonic,
-        `${accounts.path}/1`,
+        `${accounts.path}/1`
       );
       await registerWallet(wallet);
       signer = new HashicorpVaultSigner(
         wallet.address,
         options,
-        ethers.provider,
+        ethers.provider
       );
       assert.equal(wallet.address, signer.address);
 
       unknownSigner = new HashicorpVaultSigner(
         ethers.Wallet.createRandom().address,
         options,
-        ethers.provider,
+        ethers.provider
       );
     });
 
     afterEach(() => sandbox.restore());
 
-    describe('signMessage', () => {
-      const dataToSign = 'bou';
+    describe("signMessage", () => {
+      const dataToSign = "bou";
 
-      it('should returns same signature between Wallet and HashicorpVaultSigner', async () => {
+      it("should returns same signature between Wallet and HashicorpVaultSigner", async () => {
         const signature1 = await wallet.signMessage(dataToSign);
         const signature2 = await signer.signMessage(dataToSign);
         assert.equal(signature2, signature1);
         assert.equal(
           signer.address,
-          verifyMessage(dataToSign, splitSignature(signature2)),
+          verifyMessage(dataToSign, splitSignature(signature2))
         );
       });
 
-      it('should throw error for unknown address', async () => {
+      it("should throw error for unknown address", async () => {
         await assert.rejects(
           async () => await unknownSigner.signMessage(dataToSign),
           {
-            name: 'AxiosError',
-            message: 'Request failed with status code 500',
-          },
+            name: "AxiosError",
+            message: "Request failed with status code 500",
+          }
         );
       });
     });
 
-    describe('signTransaction', () => {
+    describe("signTransaction", () => {
       const ONE_YEAR_IN_SECS = 365 * 24 * 60 * 60;
       const ONE_GWEI = 1_000_000_000;
       const lockedAmount = ONE_GWEI;
@@ -211,14 +216,14 @@ describe('HashicorpVaultSigner', () => {
 
       before(async () => {
         unlockTime = (await time.latest()) + ONE_YEAR_IN_SECS;
-        Lock = await ethers.getContractFactory('Lock');
+        Lock = await ethers.getContractFactory("Lock");
       });
 
       beforeEach(() => {
-        sandbox.spy(HashicorpVaultSigner.prototype, 'signTransaction');
+        sandbox.spy(HashicorpVaultSigner.prototype, "signTransaction");
       });
 
-      it('should call signTransaction from contract deploying', async () => {
+      it("should call signTransaction from contract deploying", async () => {
         const [deployer] = await ethers.getSigners();
         assert.notEqual(signer.address, deployer.address);
 
@@ -227,15 +232,15 @@ describe('HashicorpVaultSigner', () => {
         });
         await defaultContract.deployed();
         const defaultTx = await ethers.provider.getTransaction(
-          defaultContract.deployTransaction.hash,
+          defaultContract.deployTransaction.hash
         );
         assert.equal(defaultTx.from, deployer.address);
         const defaultReceipt = await ethers.provider.getTransactionReceipt(
-          defaultContract.deployTransaction.hash,
+          defaultContract.deployTransaction.hash
         );
         assert.equal(
           HashicorpVaultSigner.prototype.signTransaction.callCount,
-          0,
+          0
         );
 
         const signerContract = await Lock.connect(signer).deploy(unlockTime, {
@@ -244,18 +249,18 @@ describe('HashicorpVaultSigner', () => {
         await signerContract.deployed();
 
         const signerTx = await ethers.provider.getTransaction(
-          signerContract.deployTransaction.hash,
+          signerContract.deployTransaction.hash
         );
         assert.equal(signerTx.from, signer.address);
         const signerReceipt = await ethers.provider.getTransactionReceipt(
-          signerContract.deployTransaction.hash,
+          signerContract.deployTransaction.hash
         );
 
         assert.equal(
           HashicorpVaultSigner.prototype.signTransaction.callCount,
-          1,
+          1
         );
-        const {lastArg, returnValue} =
+        const { lastArg, returnValue } =
           HashicorpVaultSigner.prototype.signTransaction.lastCall;
         assert.equal(lastArg.from, signer.address);
         const tx = parseTransaction(await returnValue);
@@ -272,7 +277,7 @@ describe('HashicorpVaultSigner', () => {
         assert.deepEqual(lastArg.maxFeePerGas, signerTx.maxFeePerGas);
         assert.deepEqual(
           lastArg.maxPriorityFeePerGas,
-          signerTx.maxPriorityFeePerGas,
+          signerTx.maxPriorityFeePerGas
         );
         assert.deepEqual(tx.accessList, signerTx.accessList);
         assert.equal(tx.r, signerTx.r);
@@ -301,26 +306,26 @@ describe('HashicorpVaultSigner', () => {
         assert.deepEqual(signerReceipt.gasUsed, defaultReceipt.gasUsed);
         assert.deepEqual(
           signerReceipt.cumulativeGasUsed,
-          defaultReceipt.cumulativeGasUsed,
+          defaultReceipt.cumulativeGasUsed
         );
       });
 
-      it('should throw error for unknown address', async () => {
+      it("should throw error for unknown address", async () => {
         await assert.rejects(
           async () =>
             await Lock.connect(unknownSigner).deploy(unlockTime, {
               value: lockedAmount,
             }),
           {
-            name: 'AxiosError',
-            message: 'Request failed with status code 500',
-          },
+            name: "AxiosError",
+            message: "Request failed with status code 500",
+          }
         );
         assert.equal(
           HashicorpVaultSigner.prototype.signTransaction.callCount,
-          1,
+          1
         );
-        const {lastArg} =
+        const { lastArg } =
           HashicorpVaultSigner.prototype.signTransaction.lastCall;
         assert.equal(lastArg.from, unknownSigner.address);
       });
