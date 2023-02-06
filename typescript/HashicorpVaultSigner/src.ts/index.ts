@@ -70,7 +70,7 @@ export class HashicorpVaultSigner extends ethers.Signer {
 
     // ethers.utils.defineReadOnly may cause `error TS2564: Property 'X' has
     // no initializer and is not definitely assigned in the constructor.` and
-    // I don't known how to solve it.
+    // I don't know how to solve it.
     this.address = getAddress(address);
 
     if (typeof baseUrlOrOptions === "string") {
