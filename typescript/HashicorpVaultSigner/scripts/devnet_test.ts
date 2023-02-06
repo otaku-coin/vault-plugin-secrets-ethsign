@@ -60,7 +60,7 @@ async function registerWallet(wallet: Wallet) {
 async function createSigner(provider?: Provider): Wallet {
   const wallet = ethers.Wallet.createRandom().connect(provider);
   await registerWallet(wallet);
-  return new HashicorpVaultSigner(BASE_URL, TOKEN, wallet.address, provider);
+  return new HashicorpVaultSigner(wallet.address, BASE_URL, TOKEN, provider);
 }
 
 async function sendAndSendBack(
