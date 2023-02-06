@@ -22,7 +22,10 @@ import delay from "delay";
 import sinon from "sinon";
 import { HashicorpVaultSigner } from "../src.ts/index";
 
-async function importPrivateKey(datadir: string, address: string): Buffer {
+async function importPrivateKey(
+  datadir: string,
+  address: string
+): Promise<Buffer> {
   const keyObject = keythereum.importFromFile(address, datadir);
   const enc = new TextEncoder();
   const privateKey = keythereum.recover(enc.encode(""), keyObject);
@@ -33,7 +36,7 @@ async function importWallet(
   datadir: string,
   address: string,
   provider?: Provider
-): Wallet {
+): Promise<Wallet> {
   const privateKey = await importPrivateKey("dev-chain", address);
   const wallet = new ethers.Wallet(privateKey, provider);
   console.log("recover account", wallet.address);
@@ -56,7 +59,7 @@ async function registerWallet(wallet: Wallet) {
   await axios(config);
 }
 
-async function createSigner(provider?: Provider): Wallet {
+async function createSigner(provider?: Provider): Promise<Wallet> {
   const wallet = ethers.Wallet.createRandom().connect(provider);
   await registerWallet(wallet);
   return new HashicorpVaultSigner(wallet.address, BASE_URL, TOKEN, provider);
