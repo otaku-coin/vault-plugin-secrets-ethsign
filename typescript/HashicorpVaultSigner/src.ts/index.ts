@@ -73,7 +73,10 @@ export class HashicorpVaultSigner extends ethers.Signer {
     // I don't know how to solve it.
     this.address = getAddress(address);
 
-    if (typeof baseUrlOrOptions === "string") {
+    if (
+      typeof baseUrlOrOptions === "string" &&
+      typeof tokenOrProvider === "string"
+    ) {
       this.options = {
         baseUrl: baseUrlOrOptions,
         token: tokenOrProvider,
