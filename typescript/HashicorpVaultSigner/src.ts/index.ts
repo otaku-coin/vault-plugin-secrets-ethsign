@@ -84,7 +84,7 @@ export class HashicorpVaultSigner extends ethers.Signer {
       this.provider = provider;
     } else {
       this.options = { ...(baseUrlOrOptions as HashicorpVaultSignerOptions) };
-      this.provider = tokenOrProvider;
+      this.provider = tokenOrProvider as ethers.providers.Provider;
     }
   }
 
