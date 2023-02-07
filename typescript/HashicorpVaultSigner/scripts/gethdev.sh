@@ -16,7 +16,7 @@
 set -e
 
 geth=${GETH:=geth}
-datadir=dev-chain
+datadir=${DATADIR:=dev-chain}
 
 exec "$geth" --dev --dev.period 13 --datadir "$datadir" \
 --http --http.api eth,web3,net --http.corsdomain "http://remix.ethereum.org"
