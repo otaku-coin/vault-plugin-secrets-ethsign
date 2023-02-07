@@ -22,6 +22,8 @@ import delay from "delay";
 import sinon from "sinon";
 import { HashicorpVaultSigner } from "../src.ts/index";
 
+let signTransactionSpy: sinon.SinonSpy;
+
 async function importPrivateKey(
   datadir: string,
   address: string
@@ -112,8 +114,7 @@ async function sendAndSendBack(
   });
   await tx.wait();
 
-  const { lastArg, returnValue } =
-    HashicorpVaultSigner.prototype.signTransaction.lastCall;
+  const { lastArg, returnValue } = signTransactionSpy.lastCall;
   const signedTx = ethers.utils.parseTransaction(await returnValue);
 
   assert.equal(tx.type, lastArg.type);
@@ -152,8 +153,7 @@ async function deployAndVerify(
     value: lockedAmount,
   });
   await lock.deployed();
-  const { lastArg, returnValue } =
-    HashicorpVaultSigner.prototype.signTransaction.lastCall;
+  const { lastArg, returnValue } = signTransactionSpy.lastCall;
   const signedTx = ethers.utils.parseTransaction(await returnValue);
 
   let tx = lock.deployTransaction;
@@ -227,23 +227,23 @@ async function main() {
   console.log("account is", account);
 
   let sandbox = sinon.createSandbox();
-  sandbox.spy(HashicorpVaultSigner.prototype, "signTransaction");
-  sandbox.spy(HashicorpVaultSigner.prototype, "signDigest");
+  signTransactionSpy = sandbox.spy(HashicorpVaultSigner.prototype, "signTransaction");
+  const signDigestSpy = sandbox.spy(HashicorpVaultSigner.prototype, "signDigest");
 
   const signer = await createSigner(provider);
   signer.estimater = wallet;
   console.log("signer is", signer.address);
 
-  assert.equal(HashicorpVaultSigner.prototype.signTransaction.callCount, 0);
-  assert.equal(HashicorpVaultSigner.prototype.signDigest.callCount, 0);
+  assert.equal(signTransactionSpy.callCount, 0);
+  assert.equal(signDigestSpy.callCount, 0);
 
   await sendAndSendBack(provider, wallet, signer);
-  assert.equal(HashicorpVaultSigner.prototype.signTransaction.callCount, 1);
-  assert.equal(HashicorpVaultSigner.prototype.signDigest.callCount, 1);
+  assert.equal(signTransactionSpy.callCount, 1);
+  assert.equal(signDigestSpy.callCount, 1);
 
   await deployAndVerify(provider, signer);
-  assert.equal(HashicorpVaultSigner.prototype.signTransaction.callCount, 4);
-  assert.equal(HashicorpVaultSigner.prototype.signDigest.callCount, 4);
+  assert.equal(signTransactionSpy.callCount, 4);
+  assert.equal(signDigestSpy.callCount, 4);
 
   sandbox.restore();
 }

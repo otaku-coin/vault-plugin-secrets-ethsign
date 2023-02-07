@@ -213,6 +213,7 @@ describe("HashicorpVaultSigner", () => {
       const lockedAmount = ONE_GWEI;
       let Lock: ethers.Contract;
       let unlockTime: number;
+      let signTransactionSpy: sinon.SinonSpy;
 
       before(async () => {
         unlockTime = (await time.latest()) + ONE_YEAR_IN_SECS;
@@ -220,7 +221,7 @@ describe("HashicorpVaultSigner", () => {
       });
 
       beforeEach(() => {
-        sandbox.spy(HashicorpVaultSigner.prototype, "signTransaction");
+        signTransactionSpy = sandbox.spy(HashicorpVaultSigner.prototype, "signTransaction");
       });
 
       it("should call signTransaction from contract deploying", async () => {
@@ -238,10 +239,7 @@ describe("HashicorpVaultSigner", () => {
         const defaultReceipt = await ethers.provider.getTransactionReceipt(
           defaultContract.deployTransaction.hash
         );
-        assert.equal(
-          HashicorpVaultSigner.prototype.signTransaction.callCount,
-          0
-        );
+        assert.equal(signTransactionSpy.callCount, 0);
 
         const signerContract = await Lock.connect(signer).deploy(unlockTime, {
           value: lockedAmount,
@@ -257,11 +255,11 @@ describe("HashicorpVaultSigner", () => {
         );
 
         assert.equal(
-          HashicorpVaultSigner.prototype.signTransaction.callCount,
+          signTransactionSpy.callCount,
           1
         );
         const { lastArg, returnValue } =
-          HashicorpVaultSigner.prototype.signTransaction.lastCall;
+          signTransactionSpy.lastCall;
         assert.equal(lastArg.from, signer.address);
         const tx = parseTransaction(await returnValue);
         assert.equal(tx.from, signer.address);
@@ -321,12 +319,8 @@ describe("HashicorpVaultSigner", () => {
             message: "Request failed with status code 500",
           }
         );
-        assert.equal(
-          HashicorpVaultSigner.prototype.signTransaction.callCount,
-          1
-        );
-        const { lastArg } =
-          HashicorpVaultSigner.prototype.signTransaction.lastCall;
+        assert.equal(signTransactionSpy.callCount, 1);
+        const { lastArg } = signTransactionSpy.lastCall;
         assert.equal(lastArg.from, unknownSigner.address);
       });
     });
