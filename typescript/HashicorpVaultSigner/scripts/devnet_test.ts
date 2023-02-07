@@ -205,7 +205,7 @@ async function deployAndVerify(
 
   console.log("call withdraw");
   tx = await lock.withdraw();
-  assert.equal(tx.nonce, 3);
+  assert.equal(tx.nonce, 2);
   let receipt = await tx.wait();
   assert.equal(receipt.from, signer.address);
   assert.equal(receipt.to, lock.address);
@@ -251,8 +251,8 @@ async function main() {
   assert.equal(signDigestSpy.callCount, 1);
 
   await deployAndVerify(provider, signer);
-  assert.equal(signTransactionSpy.callCount, 4);
-  assert.equal(signDigestSpy.callCount, 4);
+  assert.equal(signTransactionSpy.callCount, 3);
+  assert.equal(signDigestSpy.callCount, 3);
 
   sandbox.restore();
 }
