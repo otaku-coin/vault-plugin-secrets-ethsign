@@ -6,6 +6,7 @@
   "main": "./lib/index.js",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -r lib",
     "prettier": "npx prettier --write src.ts scripts/*.ts test",
     "test": "npx hardhat test",
     "gethdev": "./scripts/gethdev.sh",
