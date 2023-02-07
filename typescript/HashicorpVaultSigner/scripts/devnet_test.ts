@@ -15,12 +15,14 @@
 import path from "path";
 import { strict as assert } from "assert";
 import process from "process";
-import { ethers, Provider, Wallet } from "hardhat";
-import keythereum from "keythereum";
+import * as hre from "hardhat";
+import ethers from "ethers";
 import axios, { AxiosRequestConfig } from "axios";
 import delay from "delay";
 import sinon from "sinon";
 import { HashicorpVaultSigner } from "../src.ts/index";
+
+const keythereum = require("keythereum");
 
 let signTransactionSpy: sinon.SinonSpy;
 
@@ -37,10 +39,10 @@ async function importPrivateKey(
 async function importWallet(
   datadir: string,
   address: string,
-  provider?: Provider
-): Promise<Wallet> {
+  provider?: ethers.providers.Provider
+): Promise<ethers.Wallet> {
   const privateKey = await importPrivateKey("dev-chain", address);
-  const wallet = new ethers.Wallet(privateKey, provider);
+  const wallet = new hre.ethers.Wallet(privateKey, provider);
   console.log("recover account", wallet.address);
   return wallet;
 }
@@ -48,7 +50,7 @@ async function importWallet(
 const BASE_URL = "http://127.0.0.1:8200";
 const TOKEN = "root";
 
-async function registerWallet(wallet: Wallet) {
+async function registerWallet(wallet: ethers.Wallet) {
   const config: AxiosRequestConfig = {
     method: "post",
     url: `${BASE_URL}/v1/ethereum/accounts`,
@@ -61,14 +63,16 @@ async function registerWallet(wallet: Wallet) {
   await axios(config);
 }
 
-async function createSigner(provider?: Provider): Promise<Wallet> {
-  const wallet = ethers.Wallet.createRandom().connect(provider);
+async function createSigner(
+  provider: ethers.providers.Provider
+): Promise<HashicorpVaultSigner> {
+  const wallet = hre.ethers.Wallet.createRandom().connect(provider);
   await registerWallet(wallet);
   return new HashicorpVaultSigner(wallet.address, BASE_URL, TOKEN, provider);
 }
 
 async function sendAndSendBack(
-  provider: ethers.Provder,
+  provider: ethers.providers.Provider,
   wallet: ethers.Wallet,
   signer: HashicorpVaultSigner
 ) {
@@ -83,7 +87,7 @@ async function sendAndSendBack(
     (await provider.getBalance(signer.address)).toString()
   );
 
-  const oneEth = ethers.utils.parseEther("1");
+  const oneEth = hre.ethers.utils.parseEther("1");
   let receipt = await (
     await wallet.sendTransaction({
       to: signer.address,
@@ -93,7 +97,7 @@ async function sendAndSendBack(
   assert.equal(receipt.from, wallet.address);
   assert.equal(receipt.to, signer.address);
   let balance = await provider.getBalance(signer.address);
-  assert.deepEqual(balance, ethers.BigNumber.from(oneEth));
+  assert.deepEqual(balance, hre.ethers.BigNumber.from(oneEth));
   console.log("signer balance", balance.toString());
 
   // send back 0.0001 eth: testing signer's sendTransaction
@@ -107,7 +111,7 @@ async function sendAndSendBack(
     (await provider.getBalance(signer.address)).toString()
   );
 
-  const amount = ethers.utils.parseEther("0.0001");
+  const amount = hre.ethers.utils.parseEther("0.0001");
   const tx = await signer.sendTransaction({
     to: wallet.address,
     value: amount,
@@ -115,7 +119,7 @@ async function sendAndSendBack(
   await tx.wait();
 
   const { lastArg, returnValue } = signTransactionSpy.lastCall;
-  const signedTx = ethers.utils.parseTransaction(await returnValue);
+  const signedTx = hre.ethers.utils.parseTransaction(await returnValue);
 
   assert.equal(tx.type, lastArg.type);
   assert.equal(tx.from, signer.address);
@@ -127,7 +131,7 @@ async function sendAndSendBack(
   assert.equal(tx.gasPrice, null);
   assert.equal(tx.data, signedTx.data);
   assert.equal(tx.chainId, lastArg.chainId);
-  assert.deepEqual(tx.value, ethers.BigNumber.from(lastArg.value));
+  assert.deepEqual(tx.value, hre.ethers.BigNumber.from(lastArg.value));
   assert.deepEqual(tx.gasLimit, lastArg.gasLimit);
   assert.deepEqual(tx.maxFeePerGas, lastArg.maxFeePerGas);
   assert.deepEqual(tx.maxPriorityFeePerGas, lastArg.maxPriorityFeePerGas);
@@ -138,23 +142,23 @@ async function sendAndSendBack(
 }
 
 async function deployAndVerify(
-  provider: ethers.Provder,
+  provider: ethers.providers.Provider,
   signer: HashicorpVaultSigner
 ) {
   // deploy from signer
   const currentTimestampInSeconds = Math.round(Date.now() / 1000);
   // lock 30 seconds, must greater than block period
   const unlockTime = currentTimestampInSeconds + 30;
-  const lockedAmount = ethers.utils.parseEther("0.1");
+  const lockedAmount = hre.ethers.utils.parseEther("0.1");
 
   console.log("deploying Lock contract");
-  const Lock = await ethers.getContractFactory("Lock", signer);
+  const Lock = await hre.ethers.getContractFactory("Lock", signer);
   const lock = await Lock.deploy(unlockTime, {
     value: lockedAmount,
   });
   await lock.deployed();
   const { lastArg, returnValue } = signTransactionSpy.lastCall;
-  const signedTx = ethers.utils.parseTransaction(await returnValue);
+  const signedTx = hre.ethers.utils.parseTransaction(await returnValue);
 
   let tx = lock.deployTransaction;
   assert.equal(tx.type, lastArg.type);
@@ -166,7 +170,7 @@ async function deployAndVerify(
   assert.equal(tx.gasPrice, null);
   assert.equal(tx.data, lastArg.data);
   assert.equal(tx.chainId, lastArg.chainId);
-  assert.deepEqual(tx.value, ethers.BigNumber.from(lastArg.value));
+  assert.deepEqual(tx.value, hre.ethers.BigNumber.from(lastArg.value));
   assert.deepEqual(tx.gasLimit, lastArg.gasLimit);
   assert.deepEqual(tx.maxFeePerGas, lastArg.maxFeePerGas);
   assert.deepEqual(tx.maxPriorityFeePerGas, lastArg.maxPriorityFeePerGas);
@@ -176,7 +180,7 @@ async function deployAndVerify(
   assert.equal(tx.v, signedTx.v);
 
   let contractBalance = await provider.getBalance(lock.address);
-  assert.deepEqual(contractBalance, ethers.BigNumber.from(lockedAmount));
+  assert.deepEqual(contractBalance, hre.ethers.BigNumber.from(lockedAmount));
   console.log("contract balance", contractBalance.toString());
 
   // call a read method
@@ -208,12 +212,12 @@ async function deployAndVerify(
   assert.equal(receipt.contractAddress, null);
 
   contractBalance = await provider.getBalance(lock.address);
-  assert.deepEqual(contractBalance, ethers.BigNumber.from(0));
+  assert.deepEqual(contractBalance, hre.ethers.BigNumber.from(0));
   console.log("contract balance", contractBalance.toString());
 }
 
 async function main() {
-  const provider = new ethers.providers.JsonRpcProvider(
+  const provider = new hre.ethers.providers.JsonRpcProvider(
     "http://127.0.0.1:8545"
   );
   const { chainId } = await provider.getNetwork();
@@ -227,11 +231,16 @@ async function main() {
   console.log("account is", account);
 
   let sandbox = sinon.createSandbox();
-  signTransactionSpy = sandbox.spy(HashicorpVaultSigner.prototype, "signTransaction");
-  const signDigestSpy = sandbox.spy(HashicorpVaultSigner.prototype, "signDigest");
+  signTransactionSpy = sandbox.spy(
+    HashicorpVaultSigner.prototype,
+    "signTransaction"
+  );
+  const signDigestSpy = sandbox.spy(
+    HashicorpVaultSigner.prototype,
+    "signDigest"
+  );
 
   const signer = await createSigner(provider);
-  signer.estimater = wallet;
   console.log("signer is", signer.address);
 
   assert.equal(signTransactionSpy.callCount, 0);

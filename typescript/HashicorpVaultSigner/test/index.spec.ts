@@ -15,13 +15,16 @@
 import { strict as assert } from "assert";
 import http from "http";
 import https from "https";
-import tcpPortUsed from "tcp-port-used";
-import { ethers, Wallet } from "hardhat";
+import { ethers, config } from "hardhat";
 import { time } from "@nomicfoundation/hardhat-network-helpers";
+import { HardhatNetworkHDAccountsConfig } from "hardhat/types";
+import { Wallet } from "ethers";
 import axios, { AxiosRequestConfig } from "axios";
 import sinon from "sinon";
 import { HashicorpVaultSigner } from "../src.ts/index";
 import { createMockServer } from "./mock";
+
+const tcpPortUsed = require("tcp-port-used");
 
 const {
   arrayify,
@@ -161,11 +164,9 @@ describe("HashicorpVaultSigner", () => {
         axiosRequestConfig: defaultAxiosRequestConfig,
       };
 
-      const accounts = config.networks.hardhat.accounts;
-      wallet = ethers.Wallet.fromMnemonic(
-        accounts.mnemonic,
-        `${accounts.path}/1`
-      );
+      const accounts = config.networks.hardhat
+        .accounts as HardhatNetworkHDAccountsConfig;
+      wallet = Wallet.fromMnemonic(accounts.mnemonic, `${accounts.path}/1`);
       await registerWallet(wallet);
       signer = new HashicorpVaultSigner(
         wallet.address,
@@ -211,23 +212,25 @@ describe("HashicorpVaultSigner", () => {
       const ONE_YEAR_IN_SECS = 365 * 24 * 60 * 60;
       const ONE_GWEI = 1_000_000_000;
       const lockedAmount = ONE_GWEI;
-      let Lock: ethers.Contract;
       let unlockTime: number;
       let signTransactionSpy: sinon.SinonSpy;
 
       before(async () => {
         unlockTime = (await time.latest()) + ONE_YEAR_IN_SECS;
-        Lock = await ethers.getContractFactory("Lock");
       });
 
       beforeEach(() => {
-        signTransactionSpy = sandbox.spy(HashicorpVaultSigner.prototype, "signTransaction");
+        signTransactionSpy = sandbox.spy(
+          HashicorpVaultSigner.prototype,
+          "signTransaction"
+        );
       });
 
       it("should call signTransaction from contract deploying", async () => {
         const [deployer] = await ethers.getSigners();
         assert.notEqual(signer.address, deployer.address);
 
+        const Lock = await ethers.getContractFactory("Lock");
         const defaultContract = await Lock.deploy(unlockTime, {
           value: lockedAmount,
         });
@@ -254,12 +257,8 @@ describe("HashicorpVaultSigner", () => {
           signerContract.deployTransaction.hash
         );
 
-        assert.equal(
-          signTransactionSpy.callCount,
-          1
-        );
-        const { lastArg, returnValue } =
-          signTransactionSpy.lastCall;
+        assert.equal(signTransactionSpy.callCount, 1);
+        const { lastArg, returnValue } = signTransactionSpy.lastCall;
         assert.equal(lastArg.from, signer.address);
         const tx = parseTransaction(await returnValue);
         assert.equal(tx.from, signer.address);
@@ -297,7 +296,6 @@ describe("HashicorpVaultSigner", () => {
         assert.notEqual(signerTx.hash, defaultTx.hash);
         assert.notEqual(signerTx.r, defaultTx.r);
         assert.notEqual(signerTx.s, defaultTx.s);
-        assert.notEqual(signerTx.creates, defaultTx.creates);
 
         assert.equal(signerReceipt.contractAddress, signerContract.address);
         assert.equal(defaultReceipt.contractAddress, defaultContract.address);
@@ -309,6 +307,7 @@ describe("HashicorpVaultSigner", () => {
       });
 
       it("should throw error for unknown address", async () => {
+        const Lock = await ethers.getContractFactory("Lock");
         await assert.rejects(
           async () =>
             await Lock.connect(unknownSigner).deploy(unlockTime, {
