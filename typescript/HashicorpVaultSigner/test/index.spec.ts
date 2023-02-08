@@ -82,72 +82,116 @@ describe("HashicorpVaultSigner", () => {
   after(() => server?.close());
 
   describe("constructors and related", () => {
-    it("should set options with 4 arguments", () => {
-      const signer = new HashicorpVaultSigner(
-        "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
-        "http://example.com",
-        "TOKEN",
-        ethers.provider
-      );
-      assert.equal(
-        signer.signDigestUrl(),
-        "http://example.com/v1/ethereum/accounts/0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266/sign_digest"
-      );
-      assert.deepEqual(signer.convineAxiosRequestConfig({}), {
-        headers: { Authorization: "Bearer TOKEN" },
+    describe("old style", () => {
+      it("should set options with 4 arguments", () => {
+        const signer = new HashicorpVaultSigner(
+          "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+          "http://example.com",
+          "TOKEN",
+          ethers.provider
+        );
+        assert.equal(
+          signer.signDigestUrl(),
+          "http://example.com/v1/ethereum/accounts/0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266/sign_digest"
+        );
+        assert.deepEqual(signer.convineAxiosRequestConfig({}), {
+          headers: { Authorization: "Bearer TOKEN" },
+        });
+        assert.deepEqual(signer.provider, ethers.provider);
       });
-      assert.deepEqual(signer.provider, ethers.provider);
+
+      it("should set options with 3 arguments", () => {
+        const signer = new HashicorpVaultSigner(
+          "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+          "http://example.com",
+          "TOKEN"
+        );
+        assert.equal(
+          signer.signDigestUrl(),
+          "http://example.com/v1/ethereum/accounts/0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266/sign_digest"
+        );
+        assert.deepEqual(signer.convineAxiosRequestConfig({}), {
+          headers: { Authorization: "Bearer TOKEN" },
+        });
+        assert.deepEqual(signer.provider, undefined);
+      });
     });
 
-    it("should set options with 3 arguments nor pluginPath", () => {
-      const signer = new HashicorpVaultSigner(
-        "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
-        {
-          baseUrl: "https://example.com",
-          token: "token",
-          axiosRequestConfig: {
-            baseURL: "https://example.com",
-            headers: { "X-HEADER": "defined" },
+    describe("with HashicorpVaultSignerConfig", () => {
+      it("should set options with 3 arguments nor pluginPath", () => {
+        const signer = new HashicorpVaultSigner(
+          "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+          {
+            baseUrl: "https://example.com",
+            token: "token",
+            axiosRequestConfig: {
+              baseURL: "https://example.com",
+              headers: { "X-HEADER": "defined" },
+            },
           },
-        },
-        ethers.provider
-      );
+          ethers.provider
+        );
 
-      assert.equal(
-        signer.signDigestUrl(),
-        "https://example.com/v1/ethereum/accounts/0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266/sign_digest"
-      );
-      assert.deepEqual(signer.convineAxiosRequestConfig({}), {
-        baseURL: "https://example.com",
-        headers: { Authorization: "Bearer token", "X-HEADER": "defined" },
+        assert.equal(
+          signer.signDigestUrl(),
+          "https://example.com/v1/ethereum/accounts/0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266/sign_digest"
+        );
+        assert.deepEqual(signer.convineAxiosRequestConfig({}), {
+          baseURL: "https://example.com",
+          headers: { Authorization: "Bearer token", "X-HEADER": "defined" },
+        });
+        assert.deepEqual(signer.provider, ethers.provider);
       });
-      assert.deepEqual(signer.provider, ethers.provider);
-    });
 
-    it("should set options with 3 arguments and pluginPath", () => {
-      const signer = new HashicorpVaultSigner(
-        "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
-        {
-          baseUrl: "https://example.com",
-          token: "token",
-          pluginPath: "ethhsv",
-          axiosRequestConfig: {
-            baseURL: "https://example.com",
-            headers: { "X-HEADER": "defined" },
+      it("should set options with 2 arguments nor pluginPath", () => {
+        const signer = new HashicorpVaultSigner(
+          "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+          {
+            baseUrl: "https://example.com",
+            token: "token",
+            axiosRequestConfig: {
+              baseURL: "https://example.com",
+              headers: { "X-HEADER": "defined" },
+            },
+          }
+        );
+
+        assert.equal(
+          signer.signDigestUrl(),
+          "https://example.com/v1/ethereum/accounts/0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266/sign_digest"
+        );
+        assert.deepEqual(signer.convineAxiosRequestConfig({}), {
+          baseURL: "https://example.com",
+          headers: { Authorization: "Bearer token", "X-HEADER": "defined" },
+        });
+        assert.deepEqual(signer.provider, undefined);
+      });
+
+      it("should set options with 3 arguments and pluginPath", () => {
+        const signer = new HashicorpVaultSigner(
+          "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+          {
+            baseUrl: "https://example.com",
+            token: "token",
+            pluginPath: "ethhsv",
+            axiosRequestConfig: {
+              baseURL: "https://example.com",
+              headers: { "X-HEADER": "defined" },
+            },
           },
-        },
-        ethers.provider
-      );
+          ethers.provider
+        );
 
-      assert.equal(
-        signer.signDigestUrl(),
-        "https://example.com/v1/ethhsv/accounts/0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266/sign_digest"
-      );
-      assert.deepEqual(signer.convineAxiosRequestConfig({}), {
-        baseURL: "https://example.com",
-        headers: { Authorization: "Bearer token", "X-HEADER": "defined" },
+        assert.equal(
+          signer.signDigestUrl(),
+          "https://example.com/v1/ethhsv/accounts/0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266/sign_digest"
+        );
+        assert.deepEqual(signer.convineAxiosRequestConfig({}), {
+          baseURL: "https://example.com",
+          headers: { Authorization: "Bearer token", "X-HEADER": "defined" },
+        });
+        assert.deepEqual(signer.provider, ethers.provider);
       });
-      assert.deepEqual(signer.provider, ethers.provider);
     });
   });
 
