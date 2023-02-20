@@ -1,4 +1,5 @@
 // Copyright © 2020 Kaleido
+// Copyright © 2023 Otaku Coin Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -46,6 +47,7 @@ func paths(b *backend) []*framework.Path {
 		pathCreateAndList(b),
 		pathReadAndDelete(b),
 		pathExport(b),
+		pathSignDigest(b),
 	}
 }
 
@@ -94,6 +96,7 @@ func (b *backend) createAccount(ctx context.Context, req *logical.Request, data 
 	hash := sha3.NewLegacyKeccak256()
 	hash.Write(publicKeyBytes[1:])
 	address := hexutil.Encode(hash.Sum(nil)[12:])
+	b.Logger().Info("Creating account for address", "address", address)
 
 	accountPath := fmt.Sprintf("accounts/%s", address)
 
@@ -156,6 +159,8 @@ func (b *backend) exportAccount(ctx context.Context, req *logical.Request, data 
 
 func (b *backend) deleteAccount(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
 	address := data.Get("name").(string)
+	b.Logger().Info("Deleting account for address", "address", address)
+
 	account, err := b.retrieveAccount(ctx, req, address)
 	if err != nil {
 		b.Logger().Error("Failed to retrieve the account by address", "address", address, "error", err)
@@ -196,6 +201,46 @@ func (b *backend) retrieveAccount(ctx context.Context, req *logical.Request, add
 		_ = entry.DecodeJSON(&account)
 		return &account, nil
 	}
+}
+
+func (b *backend) signDigest(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
+	from := data.Get("name").(string)
+	b.Logger().Info("Generating signature for address", "from", from)
+
+	digestHash := data.Get("hash").(string)
+	_, err := hexutil.Decode(digestHash)
+	if err != nil {
+		b.Logger().Error("Failed to decode payload for the 'hash' field", "error", err)
+		return nil, err
+	}
+
+	account, err := b.retrieveAccount(ctx, req, from)
+	if err != nil {
+		b.Logger().Error("Failed to retrieve the signing account", "address", from, "error", err)
+		return nil, fmt.Errorf("Error retrieving signing account %s", from)
+	}
+	if account == nil {
+		b.Logger().Error("Signing account does not exist", "address", from)
+		return nil, fmt.Errorf("Signing account %s does not exist", from)
+	}
+	privateKey, err := crypto.HexToECDSA(account.PrivateKey)
+	if err != nil {
+		b.Logger().Error("Error reconstructing private key from retrieved hex", "error", err)
+		return nil, fmt.Errorf("Error reconstructing private key from retrieved hex")
+	}
+	defer ZeroKey(privateKey)
+
+	signature, err := SignDigestHash(digestHash, privateKey)
+	if err != nil {
+		b.Logger().Error("Failed to sign message", "address", from, "error", err)
+		return nil, fmt.Errorf("Failed to sign message")
+	}
+
+	return &logical.Response{
+		Data: map[string]interface{}{
+			"signature": signature,
+		},
+	}, nil
 }
 
 func ValidNumber(input string) *big.Int {

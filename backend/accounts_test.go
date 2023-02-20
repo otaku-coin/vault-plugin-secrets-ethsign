@@ -1,4 +1,5 @@
 // Copyright © 2020 Kaleido
+// Copyright © 2023 Otaku Coin Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -227,6 +228,34 @@ func TestAccounts(t *testing.T) {
 	req.Storage = storage
 	resp, _ = b.HandleRequest(context.Background(), req)
 	assert.Equal(1, len(resp.Data))
+
+	// sign digest
+	req = logical.TestRequest(t, logical.CreateOperation, "accounts/"+address4+"/sign_digest")
+	req.Storage = storage
+	data = map[string]interface{}{
+		"hash": "0xaf65200e5406afa5d05ce55ef0b239ed7200c38be4102b93d1b354b357f5debf",
+	}
+	req.Data = data
+	resp, err = b.HandleRequest(context.Background(), req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	signature := resp.Data["signature"].(string)
+	assert.Equal(signature, "0x07ea71aad4d80a1ec731aa8e182b2fc03fa33d0508870d178495e7f653f12949652915bbf1ba5faf53aa1c219ba2c5c057806aeb382d3b71519e3f1182cf00431c")
+
+	// sign digest
+	req = logical.TestRequest(t, logical.CreateOperation, "accounts/"+address4+"/sign_digest")
+	req.Storage = storage
+	data = map[string]interface{}{
+		"hash": "0x1eb788716336ddae8670d3d9f6608548ddfa5001d5fec18df7d366b0c8f777fc",
+	}
+	req.Data = data
+	resp, err = b.HandleRequest(context.Background(), req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	signature = resp.Data["signature"].(string)
+	assert.Equal(signature, "0x68fc99121ceea8dfdf3d229bd6cafa7e09a33859db579a3b886d65f933498d8d3838dc621de42e8356066293551e0fa84ea0a908a6c2836a2b6aa874747e29841b")
 }
 
 func TestListAccountsFailure1(t *testing.T) {
@@ -403,6 +432,49 @@ func TestDeleteAccountsFailure3(t *testing.T) {
 
 	assert.Nil(resp)
 	assert.Equal("Bang for Delete!", err.Error())
+}
+
+func TestSignDigestFailure1(t *testing.T) {
+	assert := assert.New(t)
+
+	b, _ := getBackend(t)
+	req := logical.TestRequest(t, logical.CreateOperation, "accounts/0xf809410b0d6f047c603deb311979cd413e025a84/sign_digest")
+	sm := newStorageMock()
+	req.Storage = sm
+	req.Data["hash"] = "0xabc"
+	resp, err := b.HandleRequest(context.Background(), req)
+
+	assert.Nil(resp)
+	assert.Equal("hex string of odd length", err.Error())
+}
+
+func TestSignDigestFailure2(t *testing.T) {
+	assert := assert.New(t)
+
+	b, _ := getBackend(t)
+	req := logical.TestRequest(t, logical.CreateOperation, "accounts/0xf809410b0d6f047c603deb311979cd413e025a84/sign_digest")
+	sm := newStorageMock()
+	req.Storage = sm
+	req.Data["hash"] = "0xabcd"
+	resp, err := b.HandleRequest(context.Background(), req)
+
+	assert.Nil(resp)
+	assert.Equal("Error retrieving signing account 0xf809410b0d6f047c603deb311979cd413e025a84", err.Error())
+}
+
+func TestSignDigestFailure3(t *testing.T) {
+	assert := assert.New(t)
+
+	b, _ := getBackend(t)
+	req := logical.TestRequest(t, logical.CreateOperation, "accounts/0xf809410b0d6f047c603deb311979cd413e025a84/sign_digest")
+	sm := newStorageMock()
+	sm.switches[1] = 1
+	req.Storage = sm
+	req.Data["hash"] = "0xabcd"
+	resp, err := b.HandleRequest(context.Background(), req)
+
+	assert.Nil(resp)
+	assert.Equal("Signing account 0xf809410b0d6f047c603deb311979cd413e025a84 does not exist", err.Error())
 }
 
 func contains(arr []*big.Int, value *big.Int) bool {
