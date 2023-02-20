@@ -1,4 +1,5 @@
 // Copyright © 2020 Kaleido
+// Copyright © 2023 Otaku Coin Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,18 +16,12 @@
 package backend
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"math/big"
 	"reflect"
-	"strings"
 	"testing"
 	"time"
-
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/rlp"
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/vault/sdk/helper/logging"
@@ -162,77 +157,6 @@ func TestAccounts(t *testing.T) {
 		t.Fatalf("bad response.\n\nexpected: %#v\n\nGot: %#v", expected, resp)
 	}
 
-	// sign contract creation TX by address using Homestead signer
-	dataToSign := "608060405234801561001057600080fd5b506040516020806101d783398101604052516000556101a3806100346000396000f3006080604052600436106100615763ffffffff7c01000000000000000000000000000000000000000000000000000000006000350416632a1afcd981146100665780632c46b2051461008d57806360fe47b1146100a25780636d4ce63c1461008d575b600080fd5b34801561007257600080fd5b5061007b6100ba565b60408051918252519081900360200190f35b34801561009957600080fd5b5061007b6100c0565b3480156100ae57600080fd5b5061007b6004356100c6565b60005481565b60005490565b60006064821061013757604080517f08c379a000000000000000000000000000000000000000000000000000000000815260206004820152601960248201527f56616c75652063616e206e6f74206265206f7665722031303000000000000000604482015290519081900360640190fd5b60008290556040805183815290517f9455957c3b77d1d4ed071e2b469dd77e37fc5dfd3b4d44dc8a997cc97c7b3d499181900360200190a15050600054905600a165627a7a72305820a22d4674e519555e6f065ccf98b5bd479e108895cbddc10cba200c775d0008730029000000000000000000000000000000000000000000000000000000000000000a"
-	req = logical.TestRequest(t, logical.CreateOperation, "accounts/"+address1+"/sign")
-	req.Storage = storage
-	data := map[string]interface{}{
-		"data":     dataToSign,
-		"gas":      500000,
-		"nonce":    "0x2",
-		"gasPrice": 0,
-	}
-	req.Data = data
-	resp, err = b.HandleRequest(context.Background(), req)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	signedTx := resp.Data["signed_transaction"].(string)
-	signatureBytes, err := hexutil.Decode(signedTx)
-	var tx types.Transaction
-	err = tx.DecodeRLP(rlp.NewStream(bytes.NewReader(signatureBytes), 0))
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	v, _, _ := tx.RawSignatureValues()
-	assert.Equal(true, contains([]*big.Int{big.NewInt(27), big.NewInt(28)}, v))
-
-	sender, _ := types.Sender(types.HomesteadSigner{}, &tx)
-	assert.Equal(address1, strings.ToLower(sender.Hex()))
-
-	// sign TX by address without "0x" using EIP155 signer
-	dataToSign = "60fe47b10000000000000000000000000000000000000000000000000000000000000014"
-	req = logical.TestRequest(t, logical.CreateOperation, "accounts/"+address2[2:]+"/sign")
-	req.Storage = storage
-	data = map[string]interface{}{
-		"data":     dataToSign,
-		"to":       "0xf809410b0d6f047c603deb311979cd413e025a84",
-		"gas":      50000,
-		"nonce":    "0x3",
-		"gasPrice": 0,
-		"chainId":  12345,
-	}
-	req.Data = data
-	resp, err = b.HandleRequest(context.Background(), req)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	signedTx = resp.Data["signed_transaction"].(string)
-	signatureBytes, err = hexutil.Decode(signedTx)
-	err = tx.DecodeRLP(rlp.NewStream(bytes.NewReader(signatureBytes), 0))
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	v, _, _ = tx.RawSignatureValues()
-	assert.Equal(true, contains([]*big.Int{big.NewInt(24725), big.NewInt(24726)}, v))
-
-	sender, _ = types.Sender(types.HomesteadSigner{}, &tx)
-	assert.Equal(address1, strings.ToLower(sender.Hex()))
-
-	data = map[string]interface{}{
-		"input":    dataToSign,
-		"to":       "0xf809410b0d6f047c603deb311979cd413e025a84",
-		"gas":      50000,
-		"nonce":    "0x3",
-		"gasPrice": 0,
-		"chainId":  12345,
-	}
-	req.Data = data
-	resp, err = b.HandleRequest(context.Background(), req)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
 	// delete key by name
 	req = logical.TestRequest(t, logical.DeleteOperation, "accounts/"+address1)
 	req.Storage = storage
@@ -265,7 +189,7 @@ func TestAccounts(t *testing.T) {
 	// import key3
 	req = logical.TestRequest(t, logical.UpdateOperation, "accounts")
 	req.Storage = storage
-	data = map[string]interface{}{
+	data := map[string]interface{}{
 		"privateKey": "ec85999367d32fbbe02dd600a2a44550b95274cc67d14375a9f0bce233f13ad2",
 	}
 	req.Data = data
@@ -302,6 +226,34 @@ func TestAccounts(t *testing.T) {
 	req.Storage = storage
 	resp, _ = b.HandleRequest(context.Background(), req)
 	assert.Equal(1, len(resp.Data))
+
+	// sign digest
+	req = logical.TestRequest(t, logical.CreateOperation, "accounts/"+address4+"/sign_digest")
+	req.Storage = storage
+	data = map[string]interface{}{
+		"hash": "0xaf65200e5406afa5d05ce55ef0b239ed7200c38be4102b93d1b354b357f5debf",
+	}
+	req.Data = data
+	resp, err = b.HandleRequest(context.Background(), req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	signature := resp.Data["signature"].(string)
+	assert.Equal(signature, "0x07ea71aad4d80a1ec731aa8e182b2fc03fa33d0508870d178495e7f653f12949652915bbf1ba5faf53aa1c219ba2c5c057806aeb382d3b71519e3f1182cf00431c")
+
+	// sign digest
+	req = logical.TestRequest(t, logical.CreateOperation, "accounts/"+address4+"/sign_digest")
+	req.Storage = storage
+	data = map[string]interface{}{
+		"hash": "0x1eb788716336ddae8670d3d9f6608548ddfa5001d5fec18df7d366b0c8f777fc",
+	}
+	req.Data = data
+	resp, err = b.HandleRequest(context.Background(), req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	signature = resp.Data["signature"].(string)
+	assert.Equal(signature, "0x68fc99121ceea8dfdf3d229bd6cafa7e09a33859db579a3b886d65f933498d8d3838dc621de42e8356066293551e0fa84ea0a908a6c2836a2b6aa874747e29841b")
 }
 
 func TestListAccountsFailure1(t *testing.T) {
@@ -480,110 +432,47 @@ func TestDeleteAccountsFailure3(t *testing.T) {
 	assert.Equal("Bang for Delete!", err.Error())
 }
 
-func TestSignTxFailure1(t *testing.T) {
+func TestSignDigestFailure1(t *testing.T) {
 	assert := assert.New(t)
 
 	b, _ := getBackend(t)
-	req := logical.TestRequest(t, logical.CreateOperation, "accounts/0xf809410b0d6f047c603deb311979cd413e025a84/sign")
+	req := logical.TestRequest(t, logical.CreateOperation, "accounts/0xf809410b0d6f047c603deb311979cd413e025a84/sign_digest")
 	sm := newStorageMock()
 	req.Storage = sm
-	req.Data["data"] = "0xabc"
+	req.Data["hash"] = "0xabc"
 	resp, err := b.HandleRequest(context.Background(), req)
 
 	assert.Nil(resp)
 	assert.Equal("hex string of odd length", err.Error())
 }
 
-func TestSignTxFailure2(t *testing.T) {
+func TestSignDigestFailure2(t *testing.T) {
 	assert := assert.New(t)
 
 	b, _ := getBackend(t)
-	req := logical.TestRequest(t, logical.CreateOperation, "accounts/0xf809410b0d6f047c603deb311979cd413e025a84/sign")
+	req := logical.TestRequest(t, logical.CreateOperation, "accounts/0xf809410b0d6f047c603deb311979cd413e025a84/sign_digest")
 	sm := newStorageMock()
 	req.Storage = sm
-	req.Data["data"] = "0xabcd"
+	req.Data["hash"] = "0xabcd"
 	resp, err := b.HandleRequest(context.Background(), req)
 
 	assert.Nil(resp)
 	assert.Equal("Error retrieving signing account 0xf809410b0d6f047c603deb311979cd413e025a84", err.Error())
 }
 
-func TestSignTxFailure3(t *testing.T) {
+func TestSignDigestFailure3(t *testing.T) {
 	assert := assert.New(t)
 
 	b, _ := getBackend(t)
-	req := logical.TestRequest(t, logical.CreateOperation, "accounts/0xf809410b0d6f047c603deb311979cd413e025a84/sign")
+	req := logical.TestRequest(t, logical.CreateOperation, "accounts/0xf809410b0d6f047c603deb311979cd413e025a84/sign_digest")
 	sm := newStorageMock()
 	sm.switches[1] = 1
 	req.Storage = sm
-	req.Data["data"] = "0xabcd"
+	req.Data["hash"] = "0xabcd"
 	resp, err := b.HandleRequest(context.Background(), req)
 
 	assert.Nil(resp)
 	assert.Equal("Signing account 0xf809410b0d6f047c603deb311979cd413e025a84 does not exist", err.Error())
-}
-
-func TestSignTxFailure4(t *testing.T) {
-	assert := assert.New(t)
-
-	b, _ := getBackend(t)
-	req := logical.TestRequest(t, logical.CreateOperation, "accounts/0xf809410b0d6f047c603deb311979cd413e025a84/sign")
-	sm := newStorageMock()
-	sm.switches[1] = 2
-	req.Storage = sm
-	req.Data["data"] = "0xabcd"
-	req.Data["value"] = "abcd"
-	resp, err := b.HandleRequest(context.Background(), req)
-
-	assert.Nil(resp)
-	assert.Equal("Invalid amount for the 'value' field", err.Error())
-}
-
-func TestSignTxFailure5(t *testing.T) {
-	assert := assert.New(t)
-
-	b, _ := getBackend(t)
-	req := logical.TestRequest(t, logical.CreateOperation, "accounts/0xf809410b0d6f047c603deb311979cd413e025a84/sign")
-	sm := newStorageMock()
-	sm.switches[1] = 2
-	req.Storage = sm
-	req.Data["data"] = "0xabcd"
-	req.Data["chainId"] = "abcd"
-	resp, err := b.HandleRequest(context.Background(), req)
-
-	assert.Nil(resp)
-	assert.Equal("Invalid 'chainId' value", err.Error())
-}
-
-func TestSignTxFailure6(t *testing.T) {
-	assert := assert.New(t)
-
-	b, _ := getBackend(t)
-	req := logical.TestRequest(t, logical.CreateOperation, "accounts/0xf809410b0d6f047c603deb311979cd413e025a84/sign")
-	sm := newStorageMock()
-	sm.switches[1] = 2
-	req.Storage = sm
-	req.Data["data"] = "0xabcd"
-	req.Data["gas"] = "abcd"
-	resp, err := b.HandleRequest(context.Background(), req)
-
-	assert.Nil(resp)
-	assert.Equal("Invalid gas limit", err.Error())
-}
-
-func TestSignTxFailure7(t *testing.T) {
-	assert := assert.New(t)
-
-	b, _ := getBackend(t)
-	req := logical.TestRequest(t, logical.CreateOperation, "accounts/0xf809410b0d6f047c603deb311979cd413e025a84/sign")
-	sm := newStorageMock()
-	sm.switches[1] = 2
-	req.Storage = sm
-	req.Data["data"] = "0xabcd"
-	resp, err := b.HandleRequest(context.Background(), req)
-
-	assert.Nil(resp)
-	assert.Equal("Error reconstructing private key from retrieved hex", err.Error())
 }
 
 func contains(arr []*big.Int, value *big.Int) bool {

@@ -68,18 +68,18 @@ Before enabling the plugin on the server, it must first be registered.
 
 First copy the binary to the plugin folder for the server (consult the configuration file for the plugin folder location). Then calculate a SHA256 hash for the binary.
 ```
-shasum -a 256 ./ethsign
+SHA=$(shasum -a 256 ./ethsign | cut -d' ' -f1)
 ```
 
 Use the hash to register the plugin with vault:
 ```
- ./vault write sys/plugins/catalog/eth-hsm sha_256=$SHA command="ethsign"
+ ./vault write sys/plugins/catalog/secret/ethsign sha_256=$SHA command="ethsign"
 ```
 > If the target vault server is enabled for TLS, and is using a self-signed certificate or other non-verifiable TLS certificate, then the command value needs to contain the switch to turn off TLS verify: `command="ethsign -tls-skip-verify"`
 
 Once registered, just like in dev mode, it's ready to be enabled as a secret engine:
 ```
- ./vault secrets enable -path=ethereum -description="Eth Signing Wallet" -plugin-name=ethsign plugin
+ ./vault secrets enable -path=ethereum -description="Ethers.js Signing Wallet" -plugin-name=ethsign plugin
 ```
 
 ## Interacting with the ethsign Plugin
@@ -209,21 +209,20 @@ Key        Value
 address    0xd5bcc62d9b1087a5cfec116c24d6187dd40fdf8a
 ```
 
-### Sign A Transaction
-Use one of the accounts to sign a transaction.
+### Sign A Digest Hash
+Use one of the accounts to sign a digest hash.
 
 Using the REST API:
 ```
-$  curl -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" http://localhost:8200/v1/ethereum/accounts/0xc9389f98b1c5f5f9b6b61b5e3769471d550ad596/sign -d '{"data":"0x60fe47b10000000000000000000000000000000000000000000000000000000000000014","gas":30791,"gasPrice":0,"nonce":"0x0","to":"0xca0fe7354981aeb9d051e2f709055eb50b774087"}' |jq
+$  curl -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" http://localhost:8200/v1/ethereum/accounts/0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266/sign_digest -d '{"hash":"0x1e1ef3cf2ddb74e14d651272a05919c34c039ef08351c022b39807e275e1f62e"}' |jq
 
 {
-  "request_id": "4b68c813-eda9-e3c7-4651-e9dbc526bf47",
+  "request_id": "1abd915b-f4b2-4d0f-b144-e32ea27f804a",
   "lease_id": "",
   "renewable": false,
   "lease_duration": 0,
   "data": {
-    "signed_transaction": "0xf888808083015f9094b401069f06a24155774bf8a0f6654ea299c8f68780a460fe47b10000000000000000000000000000000000000000000000000000000000000014840ea23e3fa088f4f5505f6f1da6c9a543863d5c7537e0dfc58618dbf34517c80875283d1e07a0583ecdc23ba3333a3f25611fffe0ec7fb585e9b9af93941f6e3ef8c8ef410698",
-    "transaction_hash": "0x7ac47960a9398ae73b994c46fcb8834068195a2d3468c40a1eaad7ed4a15e68e"
+    "signature": "0xf725b40228eadb55a39900ab877a9a2c0549744ee8e74c59f1ac74882f248cd85ed8f6e1949379d3b1d5673fe1d65985fe6150f22093f5f9b0f01aadb9cba6f41c"
   },
   "wrap_info": null,
   "warnings": null,
@@ -231,11 +230,11 @@ $  curl -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" ht
 }
 ```
 
-To sign a contract deploy, simply skip the `to` parameter in the JSON payload.
+The `sign_digest` API designed to simular signDigest function of ethers.js
+[SigningKey class](https://github.com/ethers-io/ethers.js/blob/master/packages/signing-key/src.ts/index.ts).
+See signTransaction and signMessage methods of ethers.js [Wallet class](https://github.com/ethers-io/ethers.js/blob/master/packages/wallet/src.ts/index.ts) for more details.
 
-To use EIP155 signer, instead of Homestead signer, pass in `chainId` in the JSON payload.
-
-The `signed_transaction` value in the response is already RLP encoded and can be submitted to an Ethereum blockchain directly.
+NOTE: `0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266` is an address of `Account #0` of the hardhat network. See [Hardhat Network](https://hardhat.org/hardhat-network/docs/overview) for more details.
 
 ## Access Policies
 The plugin's endpoint paths are designed such that admin-level access policies vs. user-level access policies can be easily separated.

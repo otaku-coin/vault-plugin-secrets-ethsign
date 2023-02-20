@@ -1,4 +1,5 @@
 // Copyright © 2020 Kaleido
+// Copyright © 2023 Otaku Coin Association
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,17 +16,14 @@
 package backend
 
 import (
-	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"fmt"
 	"math/big"
 	"regexp"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/common/math"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
@@ -48,7 +46,7 @@ func paths(b *backend) []*framework.Path {
 	return []*framework.Path{
 		pathCreateAndList(b),
 		pathReadAndDelete(b),
-		pathSign(b),
+		pathSignDigest(b),
 	}
 }
 
@@ -97,6 +95,7 @@ func (b *backend) createAccount(ctx context.Context, req *logical.Request, data 
 	hash := sha3.NewLegacyKeccak256()
 	hash.Write(publicKeyBytes[1:])
 	address := hexutil.Encode(hash.Sum(nil)[12:])
+	b.Logger().Info("Creating account for address", "address", address)
 
 	accountPath := fmt.Sprintf("accounts/%s", address)
 
@@ -159,6 +158,8 @@ func (b *backend) exportAccount(ctx context.Context, req *logical.Request, data 
 
 func (b *backend) deleteAccount(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
 	address := data.Get("name").(string)
+	b.Logger().Info("Deleting account for address", "address", address)
+
 	account, err := b.retrieveAccount(ctx, req, address)
 	if err != nil {
 		b.Logger().Error("Failed to retrieve the account by address", "address", address, "error", err)
@@ -201,22 +202,14 @@ func (b *backend) retrieveAccount(ctx context.Context, req *logical.Request, add
 	}
 }
 
-func (b *backend) signTx(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
+func (b *backend) signDigest(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
 	from := data.Get("name").(string)
+	b.Logger().Info("Generating signature for address", "from", from)
 
-	var txDataToSign []byte
-	dataInput := data.Get("data").(string)
-	// some client such as go-ethereum uses "input" instead of "data"
-	if dataInput == "" {
-		dataInput = data.Get("input").(string)
-	}
-	if len(dataInput) > 2 && dataInput[0:2] != "0x" {
-		dataInput = "0x" + dataInput
-	}
-
-	txDataToSign, err := hexutil.Decode(dataInput)
+	digestHash := data.Get("hash").(string)
+	_, err := hexutil.Decode(digestHash)
 	if err != nil {
-		b.Logger().Error("Failed to decode payload for the 'data' field", "error", err)
+		b.Logger().Error("Failed to decode payload for the 'hash' field", "error", err)
 		return nil, err
 	}
 
@@ -226,31 +219,9 @@ func (b *backend) signTx(ctx context.Context, req *logical.Request, data *framew
 		return nil, fmt.Errorf("Error retrieving signing account %s", from)
 	}
 	if account == nil {
+		b.Logger().Error("Signing account does not exist", "address", from)
 		return nil, fmt.Errorf("Signing account %s does not exist", from)
 	}
-	amount := ValidNumber(data.Get("value").(string))
-	if amount == nil {
-		b.Logger().Error("Invalid amount for the 'value' field", "value", data.Get("value").(string))
-		return nil, fmt.Errorf("Invalid amount for the 'value' field")
-	}
-
-	rawAddressTo := data.Get("to").(string)
-
-	chainId := ValidNumber(data.Get("chainId").(string))
-	if chainId == nil {
-		b.Logger().Error("Invalid chainId", "chainId", data.Get("chainId").(string))
-		return nil, fmt.Errorf("Invalid 'chainId' value")
-	}
-
-	gasLimitIn := ValidNumber(data.Get("gas").(string))
-	if gasLimitIn == nil {
-		b.Logger().Error("Invalid gas limit", "gas", data.Get("gas").(string))
-		return nil, fmt.Errorf("Invalid gas limit")
-	}
-	gasLimit := gasLimitIn.Uint64()
-
-	gasPrice := ValidNumber(data.Get("gasPrice").(string))
-
 	privateKey, err := crypto.HexToECDSA(account.PrivateKey)
 	if err != nil {
 		b.Logger().Error("Error reconstructing private key from retrieved hex", "error", err)
@@ -258,36 +229,15 @@ func (b *backend) signTx(ctx context.Context, req *logical.Request, data *framew
 	}
 	defer ZeroKey(privateKey)
 
-	nonceIn := ValidNumber(data.Get("nonce").(string))
-	var nonce uint64
-	nonce = nonceIn.Uint64()
-
-	var tx *types.Transaction
-	if rawAddressTo == "" {
-		tx = types.NewContractCreation(nonce, amount, gasLimit, gasPrice, txDataToSign)
-	} else {
-		toAddress := common.HexToAddress(rawAddressTo)
-		tx = types.NewTransaction(nonce, toAddress, amount, gasLimit, gasPrice, txDataToSign)
-	}
-	var signer types.Signer
-	if big.NewInt(0).Cmp(chainId) == 0 {
-		signer = types.HomesteadSigner{}
-	} else {
-		signer = types.NewEIP155Signer(chainId)
-	}
-	signedTx, err := types.SignTx(tx, signer, privateKey)
+	signature, err := SignDigestHash(digestHash, privateKey)
 	if err != nil {
-		b.Logger().Error("Failed to sign the transaction object", "error", err)
-		return nil, err
+		b.Logger().Error("Failed to sign message", "address", from, "error", err)
+		return nil, fmt.Errorf("Failed to sign message")
 	}
-
-	var signedTxBuff bytes.Buffer
-	signedTx.EncodeRLP(&signedTxBuff)
 
 	return &logical.Response{
 		Data: map[string]interface{}{
-			"transaction_hash":   signedTx.Hash().Hex(),
-			"signed_transaction": hexutil.Encode(signedTxBuff.Bytes()),
+			"signature": signature,
 		},
 	}, nil
 }
