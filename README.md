@@ -273,10 +273,4 @@ path "ethereum/accounts" {
 path "ethereum/accounts/*" {
   capabilities = ["create", "read", "delete"]
 }
-/*
- * Ability to export private keys ("read")
- */
-path "ethereum/export/accounts/*" {
-  capabilities = ["read"]
-}
 ```
