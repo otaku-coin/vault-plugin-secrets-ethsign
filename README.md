@@ -1,12 +1,12 @@
 # vault-plugin-secrets-ethsign
 
-This is a modified version of vault-plugin-secrets-ethsign plugin for signing Ethererum transaction for ethers.js.
+This is a modified version of vault-plugin-secrets-ethsign plugin for signing Ethererum digest hash for ethers.js.
 
 A HashiCorp Vault plugin that supports secp256k1 based signing, with an API interface that turns the vault into a software-based HSM device.
 
 ![Overview](/resources/overview.png)
 
-The plugin only exposes the following endpoints to enable the client to generate signing keys for the secp256k1 curve suitable for signing Ethereum transactions, list existing signing keys by their names and addresses, and a `/sign` endpoint for each account. The generated private keys are saved in the vault as a secret. It never gives out the private keys.
+The plugin only exposes the following endpoints to enable the client to generate signing keys for the secp256k1 curve suitable for signing Ethereum digest hash, list existing signing keys by their names and addresses, and a `/sign_digest` endpoint for each account. The generated private keys are saved in the vault as a secret. It never gives out the private keys.
 
 ## Build
 These dependencies are needed:
@@ -240,7 +240,7 @@ NOTE: `0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266` is an address of `Account #0`
 The plugin's endpoint paths are designed such that admin-level access policies vs. user-level access policies can be easily separated.
 
 ### Sample User Level Policy:
-Use the following policy to assign to a regular user level access token, with the abilities to list keys, read individual keys and sign transactions.
+Use the following policy to assign to a regular user level access token, with the abilities to list keys, read individual keys and sign digest hashs.
 
 ```
 /*
@@ -250,7 +250,7 @@ path "ethereum/accounts" {
   capabilities = ["list"]
 }
 /*
- * Ability to retrieve individual keys ("read"), sign transactions ("create")
+ * Ability to retrieve individual keys ("read"), sign digest hashs ("create")
  */
 path "ethereum/accounts/*" {
   capabilities = ["create", "read"]
@@ -258,7 +258,7 @@ path "ethereum/accounts/*" {
 ```
 
 ### Sample Admin Level Policy:
-Use the following policy to assign to a admin level access token, with the full ability to create keys, import existing private keys, export private keys, read/delete individual keys, and sign transactions.
+Use the following policy to assign to a admin level access token, with the full ability to create keys, import existing private keys, export private keys, read/delete individual keys, and sign digest hashs.
 
 ```
 /*
@@ -268,15 +268,9 @@ path "ethereum/accounts" {
   capabilities = ["update", "list"]
 }
 /*
- * Ability to retrieve individual keys ("read"), sign transactions ("create") and delete keys ("delete")
+ * Ability to retrieve individual keys ("read"), sign digest hashs ("create") and delete keys ("delete")
  */
 path "ethereum/accounts/*" {
   capabilities = ["create", "read", "delete"]
-}
-/*
- * Ability to export private keys ("read")
- */
-path "ethereum/export/accounts/*" {
-  capabilities = ["read"]
 }
 ```
